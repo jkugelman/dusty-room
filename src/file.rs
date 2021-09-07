@@ -2,7 +2,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use std::{
     collections::BTreeMap,
     fs::File,
-    io::{self, Read, Seek, SeekFrom},
+    io::{self, BufReader, Read, Seek, SeekFrom},
     path::Path,
 };
 
@@ -20,7 +20,7 @@ impl WadType {
         match &buffer {
             b"IWAD" => Ok(WadType::Initial),
             b"PWAD" => Ok(WadType::Patch),
-            
+
             _ => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("{:?} neither IWAD nor PWAD", buffer),
@@ -69,7 +69,10 @@ pub struct WadFile {
 
 impl WadFile {
     pub fn open(path: impl AsRef<Path>) -> io::Result<WadFile> {
-        Self::read_from(&mut File::open(path)?)
+        let file = File::open(path)?;
+        let mut file = BufReader::new(file);
+
+        Self::read_from(&mut file)
     }
 
     fn read_from(file: impl Read + Seek) -> io::Result<WadFile> {
