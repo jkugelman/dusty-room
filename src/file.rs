@@ -1,30 +1,27 @@
 use byteorder::{LittleEndian, ReadBytesExt};
-use std::{
-    fs::File,
-    io::{self, BufReader, Read, Seek, SeekFrom},
-    path::Path,
-};
+use std::{fs::File, io::{self, BufReader, Read, Seek, SeekFrom}, path::Path};
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-enum WadType {
-    Initial,
-    Patch,
+pub struct WadFile {
+    wad_type: WadType,
+    lumps: Vec<Lump>,
 }
 
-impl WadType {
-    fn read_from(mut file: impl Read) -> io::Result<Self> {
-        let mut buffer = [0u8; 4];
-        file.read_exact(&mut buffer)?;
+impl WadFile {
+    pub fn open(path: impl AsRef<Path>) -> io::Result<WadFile> {
+        let file = File::open(path)?;
+        let mut file = BufReader::new(file);
 
-        match &buffer {
-            b"IWAD" => Ok(WadType::Initial),
-            b"PWAD" => Ok(WadType::Patch),
+        Self::read_from(&mut file)
+    }
 
-            _ => Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("{:?} neither IWAD nor PWAD", buffer),
-            )),
-        }
+    fn read_from(mut file: impl Read + Seek) -> io::Result<WadFile> {
+        let header = Header::read_from(&mut file)?;
+        let directory = Directory::read_from(&mut file, header.directory_offset, header.lump_count)?;
+
+        Ok(WadFile {
+            wad_type: header.wad_type,
+            lumps: directory.lumps,
+         })
     }
 }
 
@@ -51,30 +48,62 @@ impl Header {
     }
 }
 
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+enum WadType {
+    Initial,
+    Patch,
+}
+
+impl WadType {
+    fn read_from(mut file: impl Read) -> io::Result<Self> {
+        let mut buffer = [0u8; 4];
+        file.read_exact(&mut buffer)?;
+
+        match &buffer {
+            b"IWAD" => Ok(WadType::Initial),
+            b"PWAD" => Ok(WadType::Patch),
+
+            _ => Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("{:?} neither IWAD nor PWAD", buffer),
+            )),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Directory {
+    lumps: Vec<Lump>,
+}
+
+impl Directory { 
+    fn read_from(mut file: impl Read + Seek, directory_offset: u32, lump_count: u32) -> io::Result<Self> {
+        file.seek(SeekFrom::Start(directory_offset.into()))?;
+
+        let mut lumps = Vec::new();
+
+        for _ in 0..lump_count {
+            let offset = file.read_u32::<LittleEndian>()?;
+            let size = file.read_u32::<LittleEndian>()?;
+            let mut name = [0u8; 8];
+            file.read_exact(&mut name)?;
+            let name = std::str::from_utf8(&name)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?
+                .trim_end_matches('\0')
+                .to_owned();
+
+            lumps.push(Lump { offset, size, name })
+        }
+
+        Ok(Directory { lumps })
+    }
+}
+
 #[derive(Debug)]
 struct Lump {
-    pub index: u32,
-    pub offset: u32,
-    pub size: u32,
-    pub name: String,
-}
-
-pub struct WadFile {
-    header: Header,
-}
-
-impl WadFile {
-    pub fn open(path: impl AsRef<Path>) -> io::Result<WadFile> {
-        let file = File::open(path)?;
-        let mut file = BufReader::new(file);
-
-        Self::read_from(&mut file)
-    }
-
-    fn read_from(file: impl Read + Seek) -> io::Result<WadFile> {
-        let header = Header::read_from(file)?;
-        Ok(WadFile { header })
-    }
+    offset: u32,
+    size: u32,
+    name: String,
 }
 
 #[cfg(test)]
@@ -83,15 +112,22 @@ mod test {
 
     #[test]
     fn header() -> io::Result<()> {
-        let header = test_wad("doom.wad")?.header;
-        assert_eq!(header.wad_type, WadType::Initial);
-        assert_eq!(header.lump_count, 1264);
-        assert_eq!(header.directory_offset, 0x3fb7b4);
+        let wad = test_wad("doom.wad")?;
+        assert_eq!(wad.wad_type, WadType::Initial);
+        assert_eq!(wad.lumps.len(), 1264);
+        assert_eq!(wad.lumps[0].name, "PLAYPAL");
+        assert_eq!(wad.lumps[1].name, "COLORMAP");
+        assert_eq!(wad.lumps[2].name, "ENDOOM");
+        assert_eq!(wad.lumps[3].name, "DEMO1");
 
-        let header = test_wad("killer.wad")?.header;
-        assert_eq!(header.wad_type, WadType::Patch);
-        assert_eq!(header.lump_count, 55);
-        assert_eq!(header.directory_offset, 0x90508);
+        let wad = test_wad("killer.wad")?;
+        assert_eq!(wad.wad_type, WadType::Patch);
+        assert_eq!(wad.lumps.len(), 55);
+        assert_eq!(wad.lumps[0].name, "E1M1");
+        assert_eq!(wad.lumps[1].name, "THINGS");
+        assert_eq!(wad.lumps[2].name, "LINEDEFS");
+        assert_eq!(wad.lumps[3].name, "SIDEDEFS");
+
 
         Ok(())
     }
