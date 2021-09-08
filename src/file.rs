@@ -1,6 +1,5 @@
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::{
-    collections::BTreeMap,
     fs::File,
     io::{self, BufReader, Read, Seek, SeekFrom},
     path::Path,
@@ -30,13 +29,13 @@ impl WadType {
 }
 
 #[derive(Debug)]
-struct WadHeader {
+struct Header {
     pub wad_type: WadType,
     pub lump_count: u32,
     pub directory_offset: u32,
 }
 
-impl WadHeader {
+impl Header {
     fn read_from(mut file: impl Read + Seek) -> io::Result<Self> {
         file.seek(SeekFrom::Start(0))?;
 
@@ -61,10 +60,7 @@ struct Lump {
 }
 
 pub struct WadFile {
-    wad_type: WadType,
-    directory_offset: u32,
-    lumps: Vec<Lump>,
-    lumps_by_name: BTreeMap<String, u32>,
+    header: Header,
 }
 
 impl WadFile {
@@ -76,18 +72,8 @@ impl WadFile {
     }
 
     fn read_from(file: impl Read + Seek) -> io::Result<WadFile> {
-        let mut wad_file = WadFile {
-            wad_type: WadType::Initial,
-            directory_offset: 0,
-            lumps: Vec::new(),
-            lumps_by_name: BTreeMap::new(),
-        };
-
-        let header = WadHeader::read_from(file)?;
-        wad_file.wad_type = header.wad_type;
-        wad_file.directory_offset = header.directory_offset;
-
-        Ok(wad_file)
+        let header = Header::read_from(file)?;
+        Ok(WadFile { header })
     }
 }
 
@@ -96,12 +82,16 @@ mod test {
     use super::*;
 
     #[test]
-    fn iwad_vs_pwad() -> io::Result<()> {
-        let iwad = test_wad("doom.wad")?;
-        assert_eq!(iwad.wad_type, WadType::Initial);
+    fn header() -> io::Result<()> {
+        let header = test_wad("doom.wad")?.header;
+        assert_eq!(header.wad_type, WadType::Initial);
+        assert_eq!(header.lump_count, 1264);
+        assert_eq!(header.directory_offset, 0x3fb7b4);
 
-        let pwad = test_wad("killer.wad")?;
-        assert_eq!(pwad.wad_type, WadType::Patch);
+        let header = test_wad("killer.wad")?.header;
+        assert_eq!(header.wad_type, WadType::Patch);
+        assert_eq!(header.lump_count, 55);
+        assert_eq!(header.directory_offset, 0x90508);
 
         Ok(())
     }
