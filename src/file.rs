@@ -67,14 +67,19 @@ impl WadFile {
             let index = self.lump_index(name)?;
             let lump = &self.lump_locations[index];
 
-            // Read lump from file.
-            let mut file = self.file.borrow_mut();
-            let mut contents = vec![0u8; lump.size.try_into().unwrap()];
-            file.seek(SeekFrom::Start(lump.offset.into()))?;
-            file.read_exact(&mut contents)?;
+            let contents: Rc<[u8]> = if lump.size > 0 {
+                // Read lump from file.
+                let mut file = self.file.borrow_mut();
+                let mut contents = vec![0u8; lump.size.try_into().unwrap()];
+                file.seek(SeekFrom::Start(lump.offset.into()))?;
+                file.read_exact(&mut contents)?;
+                contents.into_boxed_slice().into()
+            } else {
+                // Empty lump. The offset may be garbage; avoid seeking to it.
+                Rc::new([0u8; 0])
+            };
 
             // Add to cache.
-            let contents: Rc<[u8]> = contents.into_boxed_slice().into();
             *cached_contents = Some(contents.clone());
         }
 
@@ -82,9 +87,9 @@ impl WadFile {
     }
 
     /// Load a range of lumps between start and end markers.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// let wad = WadFile::open("doom.wad")?;
     /// let sprites = wad.lumps_between("S_START", "S_END")?;
@@ -102,9 +107,9 @@ impl WadFile {
     }
 
     /// Looks up a lump's index.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// * `io::ErrorKind::NotFound` if the lump isn't found.
     /// * `io::ErrorKind::InvalidInput` if the lump name isn't unique.
     fn lump_index(&self, name: &str) -> io::Result<usize> {
@@ -248,7 +253,7 @@ mod test {
         assert!(wad.lump_index("THINGS").is_err());
         assert!(wad.lump_index("VERTEXES").is_err());
         assert!(wad.lump_index("SECTORS").is_err());
-        
+
         Ok(())
     }
 
