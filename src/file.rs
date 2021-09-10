@@ -7,15 +7,15 @@ use std::{
     fs::File,
     io::{self, BufReader, Read, Seek, SeekFrom},
     path::Path,
-    rc::Rc,
+    sync::Arc,
 };
 
 pub struct WadFile {
     file: RefCell<BufReader<File>>,
     wad_type: WadType,
-    lump_locations: Vec<Lump>,
+    lump_locations: Vec<LumpLocation>,
     lump_indices: HashMap<String, LumpIndex>,
-    lump_cache: RefCell<Vec<Option<Rc<[u8]>>>>,
+    lump_cache: RefCell<Vec<Option<Arc<[u8]>>>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -24,8 +24,10 @@ enum LumpIndex {
     NotUnique,
 }
 
+pub type LumpBlock = IndexMap<String, Arc<[u8]>>;
+
 impl WadFile {
-    /// Read a WAD file from disk.
+    /// Reads a WAD file from disk.
     pub fn open(path: impl AsRef<Path>) -> io::Result<Self> {
         let file = File::open(path)?;
         let mut file = BufReader::new(file);
@@ -37,9 +39,9 @@ impl WadFile {
         let lump_locations = directory.lumps;
 
         let mut lump_indices = HashMap::new();
-        for (index, lump) in lump_locations.iter().enumerate() {
+        for (index, lump_location) in lump_locations.iter().enumerate() {
             lump_indices
-                .entry(lump.name.clone())
+                .entry(lump_location.name.clone())
                 .and_modify(|e| *e = LumpIndex::NotUnique)
                 .or_insert(LumpIndex::Unique(index));
         }
@@ -55,28 +57,98 @@ impl WadFile {
         })
     }
 
-    /// Load a lump by name.
-    pub fn lump(&self, name: &str) -> io::Result<Rc<[u8]>> {
+    /// Retrieves a named lump. The name must be unique.
+    pub fn lump(&self, name: &str) -> io::Result<Arc<[u8]>> {
         let index = self.lump_index(name)?;
+        self.lump_contents(index)
+    }
 
+    /// Retrieves a block of `size` lumps following a named marker. The marker lump
+    /// is not included in the result.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let wad = WadFile::open("doom.wad")?;
+    /// let map = wad.lumps_after("E1M8", 10)?;
+    /// ```
+    pub fn lumps_after(&self, start: &str, size: usize) -> io::Result<LumpBlock> {
+        let start_index = self.lump_index(start)? + 1;
+
+        if start_index + size >= self.lump_locations.len() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("{} does not have {} lumps after", start, size),
+            ));
+        }
+
+        self.lump_block(start_index, size)
+    }
+
+    /// Retrieves a block of lumps between start and end markers. The marker lumps
+    /// are not included in the result.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let wad = WadFile::open("doom.wad")?;
+    /// let sprites = wad.lumps_between("S_START", "S_END")?;
+    /// ```
+    pub fn lumps_between(&self, start: &str, end: &str) -> io::Result<LumpBlock> {
+        let start_index = self.lump_index(start)? + 1;
+        let end_index = self.lump_index(end)?;
+
+        if start_index >= end_index {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("{} after {}", start, end),
+            ));
+        }
+
+        let size = end_index - start_index;
+        self.lump_block(start_index, size)
+    }
+
+
+
+    /// Looks up a lump's index.
+    ///
+    /// # Errors
+    ///
+    /// * `io::ErrorKind::NotFound` if the lump isn't found.
+    /// * `io::ErrorKind::InvalidInput` if the lump name isn't unique.
+    fn lump_index(&self, name: &str) -> io::Result<usize> {
+        let index = self.lump_indices.get(name).ok_or_else(|| {
+            io::Error::new(io::ErrorKind::NotFound, format!("no lump named {}", name))
+        })?;
+
+        match *index {
+            LumpIndex::Unique(index) => Ok(index),
+            LumpIndex::NotUnique => Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("{} not unique", name),
+            )),
+        }
+    }
+
+    /// Loads a lump from disk and caches it to speed up future lookups.
+    fn lump_contents(&self, index: usize) -> io::Result<Arc<[u8]>> {
         let mut lump_cache = self.lump_cache.borrow_mut();
         let cached_contents = &mut lump_cache[index];
 
         if cached_contents.is_none() {
-            // Get lump metadata.
-            let index = self.lump_index(name)?;
-            let lump = &self.lump_locations[index];
+            let lump_location = &self.lump_locations[index];
 
-            let contents: Rc<[u8]> = if lump.size > 0 {
+            let contents: Arc<[u8]> = if lump_location.size > 0 {
                 // Read lump from file.
                 let mut file = self.file.borrow_mut();
-                let mut contents = vec![0u8; lump.size.try_into().unwrap()];
-                file.seek(SeekFrom::Start(lump.offset.into()))?;
+                let mut contents = vec![0u8; lump_location.size.try_into().unwrap()];
+                file.seek(SeekFrom::Start(lump_location.offset.into()))?;
                 file.read_exact(&mut contents)?;
                 contents.into_boxed_slice().into()
             } else {
                 // Empty lump. The offset may be garbage; avoid seeking to it.
-                Rc::new([0u8; 0])
+                Arc::new([0u8; 0])
             };
 
             // Add to cache.
@@ -86,44 +158,16 @@ impl WadFile {
         Ok(cached_contents.as_ref().unwrap().clone())
     }
 
-    /// Load a range of lumps between start and end markers.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// let wad = WadFile::open("doom.wad")?;
-    /// let sprites = wad.lumps_between("S_START", "S_END")?;
-    /// ```
-    pub fn lumps_between(&self, start: &str, end: &str) -> io::Result<IndexMap<String, Rc<[u8]>>> {
-        let start_index = self.lump_index(start)?;
-        let end_index = self.lump_index(end)?;
+    /// Retrieves a block of lumps.
+    fn lump_block(&self, start_index: usize, size: usize) -> io::Result<LumpBlock> {
+        let mut lumps = IndexMap::with_capacity(size);
 
-        let mut lumps = IndexMap::with_capacity(end_index - start_index - 2);
-        for index in (start_index + 1)..(end_index - 1) {
+        for index in start_index..start_index + size {
             let name = &self.lump_locations[index].name;
-            lumps.insert(name.clone(), self.lump(name)?);
+            lumps.insert(name.clone(), self.lump_contents(index)?);
         }
+
         Ok(lumps)
-    }
-
-    /// Looks up a lump's index.
-    ///
-    /// # Errors
-    ///
-    /// * `io::ErrorKind::NotFound` if the lump isn't found.
-    /// * `io::ErrorKind::InvalidInput` if the lump name isn't unique.
-    fn lump_index(&self, name: &str) -> io::Result<usize> {
-        let index = self.lump_indices.get(name).copied().ok_or_else(|| {
-            io::Error::new(io::ErrorKind::NotFound, format!("no lump named {}", name))
-        })?;
-
-        match index {
-            LumpIndex::Unique(index) => Ok(index),
-            LumpIndex::NotUnique => Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!("{} not unique", name),
-            )),
-        }
     }
 }
 
@@ -175,7 +219,7 @@ impl WadType {
 
 #[derive(Debug)]
 struct Directory {
-    lumps: Vec<Lump>,
+    lumps: Vec<LumpLocation>,
 }
 
 impl Directory {
@@ -198,7 +242,7 @@ impl Directory {
                 .trim_end_matches('\0')
                 .to_owned();
 
-            lumps.push(Lump { offset, size, name });
+            lumps.push(LumpLocation { offset, size, name });
         }
 
         Ok(Directory { lumps })
@@ -206,7 +250,7 @@ impl Directory {
 }
 
 #[derive(Debug)]
-struct Lump {
+struct LumpLocation {
     offset: u32,
     size: u32,
     name: String,
@@ -258,12 +302,43 @@ mod test {
     }
 
     #[test]
+    fn lumps_after() -> io::Result<()> {
+        let wad = test_wad("doom.wad")?;
+
+        let map = wad.lumps_after("E1M8", 10)?;
+        assert_eq!(map.len(), 10);
+        assert_eq!(
+            map.keys().collect::<Vec<_>>(),
+            [
+                "THINGS", "LINEDEFS", "SIDEDEFS", "VERTEXES", "SEGS", "SSECTORS", "NODES",
+                "SECTORS", "REJECT", "BLOCKMAP"
+            ],
+        );
+
+        Ok(())
+    }
+
+    #[test]
     fn lumps_between() -> io::Result<()> {
         let wad = test_wad("doom.wad")?;
 
         let sprites = wad.lumps_between("S_START", "S_END")?;
-        assert_eq!(sprites.len(), 482);
+        assert_ne!(sprites.first().unwrap().0, "S_START");
+        assert_ne!(sprites.last().unwrap().0, "S_END");
+        assert_eq!(sprites.len(), 483);
         assert_eq!(sprites.get_index(100).unwrap().0, "SARGB5");
+
+        assert!(wad.lumps_between("S_END", "S_START").is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn lumps_after_bounds() -> io::Result<()> {
+        let wad = test_wad("doom.wad")?;
+
+        assert!(wad.lumps_after("E1M1", 0).is_ok());
+        assert!(wad.lumps_after("E1M1", 9999).is_err());
 
         Ok(())
     }
