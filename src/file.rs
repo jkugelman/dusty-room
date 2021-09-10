@@ -57,6 +57,11 @@ impl WadFile {
         })
     }
 
+    /// Is this an IWAD or PWAD?
+    pub fn wad_type(&self) -> WadType {
+        self.wad_type
+    }
+
     /// Retrieves a named lump. The name must be unique.
     pub fn lump(&self, name: &str) -> io::Result<Arc<[u8]>> {
         let index = self.lump_index(name)?;
@@ -108,8 +113,6 @@ impl WadFile {
         let size = end_index - start_index;
         self.lump_block(start_index, size)
     }
-
-
 
     /// Looks up a lump's index.
     ///
@@ -195,8 +198,10 @@ impl Header {
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-enum WadType {
+pub enum WadType {
+    /// IWAD
     Initial,
+    /// PWAD
     Patch,
 }
 
