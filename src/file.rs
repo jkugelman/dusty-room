@@ -25,7 +25,8 @@ enum LumpIndex {
 }
 
 impl WadFile {
-    pub fn open(path: impl AsRef<Path>) -> io::Result<WadFile> {
+    /// Read a WAD file from disk.
+    pub fn open(path: impl AsRef<Path>) -> io::Result<Self> {
         let file = File::open(path)?;
         let mut file = BufReader::new(file);
 
@@ -54,6 +55,7 @@ impl WadFile {
         })
     }
 
+    /// Load a lump by name.
     pub fn lump(&self, name: &str) -> io::Result<Rc<[u8]>> {
         let index = self.lump_index(name)?;
 
@@ -79,6 +81,14 @@ impl WadFile {
         Ok(cached_contents.as_ref().unwrap().clone())
     }
 
+    /// Load a range of lumps between start and end markers.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// let wad = WadFile::open("doom.wad")?;
+    /// let sprites = wad.lumps_between("S_START", "S_END")?;
+    /// ```
     pub fn lumps_between(&self, start: &str, end: &str) -> io::Result<IndexMap<String, Rc<[u8]>>> {
         let start_index = self.lump_index(start)?;
         let end_index = self.lump_index(end)?;
@@ -91,6 +101,12 @@ impl WadFile {
         Ok(lumps)
     }
 
+    /// Looks up a lump's index.
+    /// 
+    /// # Errors
+    /// 
+    /// * `io::ErrorKind::NotFound` if the lump isn't found.
+    /// * `io::ErrorKind::InvalidInput` if the lump name isn't unique.
     fn lump_index(&self, name: &str) -> io::Result<usize> {
         let index = self.lump_indices.get(name).copied().ok_or_else(|| {
             io::Error::new(io::ErrorKind::NotFound, format!("no lump named {}", name))
