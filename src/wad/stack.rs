@@ -55,10 +55,10 @@ impl WadStack {
     /// Retrieves a named lump. The name must be unique.
     ///
     /// Lumps in patch wads override the base wad.
-    pub fn lump(&self, name: &str) -> io::Result<Option<Arc<[u8]>>> {
+    pub fn lump(&self, name: &str) -> Option<Arc<[u8]>> {
         for patch in self.patches.iter().rev() {
-            if let Ok(Some(lump)) = patch.lump(name) {
-                return Ok(Some(lump));
+            if let Some(lump) = patch.lump(name) {
+                return Some(lump);
             }
         }
 
@@ -76,13 +76,13 @@ impl WadStack {
     /// use kdoom::WadStack;
     ///
     /// let wad = WadStack::base("doom.wad")?.patch("killer.wad")?;
-    /// let map = wad.lumps_after("E1M5", 10)?;
+    /// let map = wad.lumps_after("E1M5", 10);
     /// # Ok::<(), std::io::Error>(())
     /// ```
-    pub fn lumps_after(&self, start: &str, size: usize) -> io::Result<Option<LumpBlock>> {
+    pub fn lumps_after(&self, start: &str, size: usize) -> Option<LumpBlock> {
         for patch in self.patches.iter().rev() {
-            if let Ok(Some(lumps)) = patch.lumps_after(start, size) {
-                return Ok(Some(lumps));
+            if let Some(lumps) = patch.lumps_after(start, size) {
+                return Some(lumps);
             }
         }
 
@@ -100,13 +100,13 @@ impl WadStack {
     /// use kdoom::WadStack;
     ///
     /// let wad = WadStack::base("doom2.wad")?.patch("biotech.wad")?;
-    /// let sprites = wad.lumps_between("SS_START", "SS_END")?;
+    /// let sprites = wad.lumps_between("SS_START", "SS_END");
     /// # Ok::<(), std::io::Error>(())
     /// ```
-    pub fn lumps_between(&self, start: &str, end: &str) -> io::Result<Option<LumpBlock>> {
+    pub fn lumps_between(&self, start: &str, end: &str) -> Option<LumpBlock> {
         for patch in self.patches.iter().rev() {
-            if let Ok(Some(lumps)) = patch.lumps_between(start, end) {
-                return Ok(Some(lumps));
+            if let Some(lumps) = patch.lumps_between(start, end) {
+                return Some(lumps);
             }
         }
 
@@ -121,26 +121,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn iwad_then_pwads() -> io::Result<()> {
+    fn iwad_then_pwads() {
         // IWAD + PWAD = success.
-        WadStack::base(test_path("doom.wad"))?.patch(test_path("killer.wad"))?;
+        WadStack::base(test_path("doom.wad"))
+            .unwrap()
+            .patch(test_path("killer.wad"))
+            .unwrap();
 
         // Can't add an IWAD as a patch.
-        let mut wad = WadStack::base(test_path("doom.wad"))?;
+        let mut wad = WadStack::base(test_path("doom.wad")).unwrap();
         assert!(wad.add_patch(test_path("doom.wad")).is_err());
 
         // Can't start with a PWAD.
         assert!(WadStack::base(test_path("killer.wad")).is_err());
-
-        Ok(())
     }
 
     #[test]
-    fn layering() -> io::Result<()> {
-        let mut wad = WadStack::base(test_path("doom2.wad"))?;
-        assert_eq!(wad.lump("DEMO3")?.unwrap().len(), 17898);
+    fn layering() {
+        let mut wad = WadStack::base(test_path("doom2.wad")).unwrap();
+        assert_eq!(wad.lump("DEMO3").unwrap().len(), 17898);
         assert_eq!(
-            wad.lumps_after("MAP01", 10)?.unwrap()
+            wad.lumps_after("MAP01", 10)
+                .unwrap()
                 .iter()
                 .map(|(name, lump)| -> (&str, usize) { (name, lump.len()) })
                 .collect::<Vec<_>>(),
@@ -157,12 +159,13 @@ mod tests {
                 ("BLOCKMAP", 6418),
             ],
         );
-        assert_eq!(wad.lumps_between("S_START", "S_END")?.unwrap().len(), 1381);
+        assert_eq!(wad.lumps_between("S_START", "S_END").unwrap().len(), 1381);
 
-        wad.add_patch(test_path("biotech.wad"))?;
-        assert_eq!(wad.lump("DEMO3")?.unwrap().len(), 9490);
+        wad.add_patch(test_path("biotech.wad")).unwrap();
+        assert_eq!(wad.lump("DEMO3").unwrap().len(), 9490);
         assert_eq!(
-            wad.lumps_after("MAP01", 10)?.unwrap()
+            wad.lumps_after("MAP01", 10)
+                .unwrap()
                 .iter()
                 .map(|(name, lump)| -> (&str, usize) { (name, lump.len()) })
                 .collect::<Vec<_>>(),
@@ -179,10 +182,8 @@ mod tests {
                 ("BLOCKMAP", 4362),
             ],
         );
-        assert_eq!(wad.lumps_between("S_START", "S_END")?.unwrap().len(), 1381);
-        assert_eq!(wad.lumps_between("SS_START", "SS_END")?.unwrap().len(), 263);
-
-        Ok(())
+        assert_eq!(wad.lumps_between("S_START", "S_END").unwrap().len(), 1381);
+        assert_eq!(wad.lumps_between("SS_START", "SS_END").unwrap().len(), 263);
     }
 
     fn test_path(path: impl AsRef<Path>) -> PathBuf {
