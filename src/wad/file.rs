@@ -84,7 +84,7 @@ impl WadFile {
     ///
     /// ```
     /// let wad = WadFile::open("doom.wad")?;
-    /// let map = wad.lumps_after("E1M8", 10)?;
+    /// let map = wad.lumps_after("E1M5", 10)?;
     /// ```
     pub fn lumps_after(&self, start: &str, size: usize) -> io::Result<LumpBlock> {
         let start_index = self.lump_index(start)? + 1;
