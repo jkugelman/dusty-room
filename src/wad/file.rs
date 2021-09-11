@@ -6,11 +6,13 @@ use std::{
     convert::TryInto,
     fs::File,
     io::{self, BufReader, Read, Seek, SeekFrom},
-    path::Path,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 
+/// A single IWAD or PWAD file.
 pub struct WadFile {
+    path: PathBuf,
     file: RefCell<BufReader<File>>,
     wad_type: WadType,
     lump_locations: Vec<LumpLocation>,
@@ -29,6 +31,7 @@ pub type LumpBlock = IndexMap<String, Arc<[u8]>>;
 impl WadFile {
     /// Reads a WAD file from disk.
     pub fn open(path: impl AsRef<Path>) -> io::Result<Self> {
+        let path = path.as_ref();
         let file = File::open(path)?;
         let mut file = BufReader::new(file);
 
@@ -49,12 +52,18 @@ impl WadFile {
         let lump_cache = vec![None; lump_locations.len()];
 
         Ok(WadFile {
+            path: path.to_owned(),
             wad_type: header.wad_type,
             file: RefCell::new(file),
             lump_locations,
             lump_indices,
             lump_cache: RefCell::new(lump_cache),
         })
+    }
+
+    /// File path.
+    pub fn path(&self) -> &Path {
+        &self.path
     }
 
     /// Is this an IWAD or PWAD?
