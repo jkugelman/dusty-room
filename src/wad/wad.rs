@@ -1,4 +1,4 @@
-pub trait Wad {
+pub trait Wad: 'static {
     /// Retrieves a named lump. The name must be unique.
     fn lump(&self, name: &str) -> Option<&Lump>;
 

@@ -2,10 +2,12 @@ use std::{io, path::Path};
 
 use crate::{Lump, Wad, WadFile, WadType};
 
-/// An IWAD plus zero or more PWADs layered on top.
+/// A stack of one or more WAD files layered on top of each other, with later
+/// files overlaying earlier ones. Usually the first WAD is a IWAD and the rest
+/// are PWADs, but that's not a strict requirement. Other combinations are
+/// allowed.
 pub struct WadStack {
-    iwad: WadFile,
-    pwads: Vec<WadFile>,
+    wads: Vec<Box<dyn Wad>>,
 }
 
 impl WadStack {
@@ -16,8 +18,7 @@ impl WadStack {
 
         match wad.wad_type() {
             WadType::Iwad => Ok(Self {
-                iwad: wad,
-                pwads: vec![],
+                wads: vec![Box::new(wad)],
             }),
             WadType::Pwad => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -39,7 +40,7 @@ impl WadStack {
 
         match wad.wad_type() {
             WadType::Pwad => {
-                self.pwads.push(wad);
+                self.wads.push(Box::new(wad));
                 Ok(())
             }
             WadType::Iwad => Err(io::Error::new(
@@ -48,6 +49,18 @@ impl WadStack {
             )),
         }
     }
+
+    /// Creates an empty stack. Use this if you want to bypass IWAD/PWAD type
+    /// checking.
+    pub fn new() -> Self {
+        Self { wads: Vec::new() }
+    }
+
+    /// Adds a generic [`Wad`] to the stack. Use this if you want to bypass
+    /// IWAD/PWAD type checking.
+    pub fn add(&mut self, wad: impl Wad) {
+        self.wads.push(Box::new(wad));
+    }
 }
 
 impl Wad for WadStack {
@@ -55,13 +68,7 @@ impl Wad for WadStack {
     ///
     /// Lumps in later files override lumps from earlier ones.
     fn lump(&self, name: &str) -> Option<&Lump> {
-        for pwad in self.pwads.iter().rev() {
-            if let Some(lump) = pwad.lump(name) {
-                return Some(lump);
-            }
-        }
-
-        self.iwad.lump(name)
+        self.wads.iter().rev().find_map(|wad| wad.lump(name))
     }
 
     /// Retrieves a block of `size` lumps following a named marker. The marker lump
@@ -79,13 +86,10 @@ impl Wad for WadStack {
     /// # Ok::<(), std::io::Error>(())
     /// ```
     fn lumps_after(&self, start: &str, size: usize) -> Option<&[Lump]> {
-        for pwad in self.pwads.iter().rev() {
-            if let Some(lumps) = pwad.lumps_after(start, size) {
-                return Some(lumps);
-            }
-        }
-
-        self.iwad.lumps_after(start, size)
+        self.wads
+            .iter()
+            .rev()
+            .find_map(|wad| wad.lumps_after(start, size))
     }
 
     /// Retrieves a block of lumps between start and end markers. The marker lumps
@@ -103,13 +107,10 @@ impl Wad for WadStack {
     /// # Ok::<(), std::io::Error>(())
     /// ```
     fn lumps_between(&self, start: &str, end: &str) -> Option<&[Lump]> {
-        for pwad in self.pwads.iter().rev() {
-            if let Some(lumps) = pwad.lumps_between(start, end) {
-                return Some(lumps);
-            }
-        }
-
-        self.iwad.lumps_between(start, end)
+        self.wads
+            .iter()
+            .rev()
+            .find_map(|wad| wad.lumps_between(start, end))
     }
 }
 
@@ -183,6 +184,20 @@ mod tests {
         );
         assert_eq!(wad.lumps_between("S_START", "S_END").unwrap().len(), 1381);
         assert_eq!(wad.lumps_between("SS_START", "SS_END").unwrap().len(), 263);
+    }
+
+    #[test]
+    fn no_type_checking() {
+        let mut wad = WadStack::new();
+
+        // Nonsensical ordering.
+        wad.add(WadFile::open(test_path("killer.wad")).unwrap());
+        wad.add(WadFile::open(test_path("doom2.wad")).unwrap());
+        wad.add(WadFile::open(test_path("doom.wad")).unwrap());
+        wad.add(WadFile::open(test_path("biotech.wad")).unwrap());
+
+        assert!(wad.lump("E1M1").is_some());
+        assert!(wad.lump("MAP01").is_some());
     }
 
     fn test_path(path: impl AsRef<Path>) -> PathBuf {
