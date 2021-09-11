@@ -82,9 +82,12 @@ impl WadFile {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
+    /// use kdoom::WadFile;
+    ///
     /// let wad = WadFile::open("doom.wad")?;
     /// let map = wad.lumps_after("E1M5", 10)?;
+    /// # Ok::<(), std::io::Error>(())
     /// ```
     pub fn lumps_after(&self, start: &str, size: usize) -> io::Result<LumpBlock> {
         let start_index = self.lump_index(start)? + 1;
@@ -104,9 +107,12 @@ impl WadFile {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
+    /// use kdoom::WadFile;
+    ///
     /// let wad = WadFile::open("doom.wad")?;
     /// let sprites = wad.lumps_between("S_START", "S_END")?;
+    /// # Ok::<(), std::io::Error>(())
     /// ```
     pub fn lumps_between(&self, start: &str, end: &str) -> io::Result<LumpBlock> {
         let start_index = self.lump_index(start)? + 1;

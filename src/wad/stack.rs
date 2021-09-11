@@ -73,8 +73,11 @@ impl WadStack {
     /// # Example
     ///
     /// ```
+    /// use kdoom::WadStack;
+    ///
     /// let wad = WadStack::base("doom.wad")?.patch("killer.wad")?;
     /// let map = wad.lumps_after("E1M5", 10)?;
+    /// # Ok::<(), std::io::Error>(())
     /// ```
     pub fn lumps_after(&self, start: &str, size: usize) -> io::Result<LumpBlock> {
         for patch in self.patches.iter().rev() {
@@ -93,9 +96,12 @@ impl WadStack {
     ///
     /// # Example
     ///
-    /// ```
-    /// let wad = WadStack::new("doom2.wad")?.patch("biotech.wad")?;
+    /// ```no_run
+    /// use kdoom::WadStack;
+    ///
+    /// let wad = WadStack::base("doom2.wad")?.patch("biotech.wad")?;
     /// let sprites = wad.lumps_between("SS_START", "SS_END")?;
+    /// # Ok::<(), std::io::Error>(())
     /// ```
     pub fn lumps_between(&self, start: &str, end: &str) -> io::Result<LumpBlock> {
         for patch in self.patches.iter().rev() {
