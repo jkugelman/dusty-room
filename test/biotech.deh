@@ -1,0 +1,179 @@
+Patch File for DeHackEd v3.0
+
+# Note: Use the pound sign ('#') to start comment lines.
+
+Doom version = 19
+Patch format = 6
+
+
+Thing 15 (Cacodemon)
+Hit points = 350
+Bits = 4194310
+
+Thing 19 (Lost Soul)
+Hit points = 200
+Pain sound = 0
+Speed = 14
+Missile damage = 5
+Action sound = 0
+Bits = 4735494
+
+Thing 21 (Arachnotron)
+Hit points = 12000
+Bits = 6
+
+Thing 33 (Caco Fireball)
+Initial frame = 522
+Death frame = 524
+Missile damage = 3
+
+Thing 34 (Rocket (in air)
+Speed = 1769472
+Missile damage = 15
+
+Misc 0
+BFG Cells/Shot = 50
+
+Text 405 407
+YOU HAVE ENTERED DEEPLY INTO THE INFESTED
+STARPORT. BUT SOMETHING IS WRONG. THE
+MONSTERS HAVE BROUGHT THEIR OWN REALITY
+WITH THEM, AND THE STARPORT'S TECHNOLOGY
+IS BEING SUBVERTED BY THEIR PRESENCE.
+
+AHEAD, YOU SEE AN OUTPOST OF HELL, A
+FORTIFIED ZONE. IF YOU CAN GET PAST IT,
+YOU CAN PENETRATE INTO THE HAUNTED HEART
+OF THE STARBASE AND FIND THE CONTROLLING
+SWITCH WHICH HOLDS EARTH'S POPULATION
+HOSTAGE.That last robot was a lot more trouble
+than it looked, and you're starting to
+have serious doubts about going on.
+
+Ahead of you, you see something that
+looks very familiar, you can't put your
+finger on it. Deciding that there is
+still a chance that you will live, you
+move onward, hoping for the best.
+
+You can feel it, if you survive this
+next area, you're free, the money is
+yours and you're set for life!
+
+Text 9 11
+ZOMBIEMANPRISONER #1
+
+Text 11 11
+SHOTGUN GUYPRISONER #2
+
+Text 17 19
+HEAVY WEAPON DUDEVERY MEAN PRISONER 
+
+Text 5 4
+DEMONBETA
+
+Text 9 9
+LOST SOULSEC DROID
+
+Text 9 9
+CACODEMONSTALKER  
+
+Text 13 15
+BARON OF HELL HELL KNIGHT   
+
+Text 14 14
+THE CYBERDEMONMR. CYBERDEMON
+
+Text 8 11
+OUR HEROBOUNTY GUY!
+
+Text 80 83
+                         DOOM 2: Hell on Earth v%i.%i                            
+                           BioTech Episode v6.0                                  
+
+Text 38 38
+Demo is from a different game version!You must have v1.9 DOOM2 to see demos!
+
+Text 71 71
+are you sure? this skill level
+isn't even remotely fair.
+
+press y or n.do you think you'll live?
+record a demo if you do.
+
+Yes or no?  Y/N    
+
+Text 8 10
+Berserk!Beat meat!
+
+Text 20 20
+Partial InvisibilityPredator Mode       
+
+Text 24 26
+Radiation Shielding SuitPseudo-lead Radiation Suit
+
+Text 17 16
+Computer Area MapTerrain Analysis
+
+Text 25 24
+Picked up an energy cell.Picked up a BioCell     
+
+Text 30 28
+Picked up an energy cell pack.Picked up a BioCell booster 
+
+Text 27 27
+Picked up 4 shotgun shells.Picked up some shells      
+
+Text 28 31
+You got the rocket launcher!You got the neuro-tox launcher!
+
+Text 23 23
+You got the plasma gun!You got the phaser gun!
+
+Text 22 23
+Degreelessness Mode OnYou are now a superstud
+
+Text 23 23
+Degreelessness Mode OffNo longer a superstud  
+
+Text 20 23
+Ammo (no keys) AddedYou give those back!   
+
+Text 21 23
+Very Happy Ammo AddedHow can ammo be happy?!
+
+Text 19 17
+No Clipping Mode ONImmaterialization
+
+Text 20 23
+No Clipping Mode OFFMaterialization        
+
+Text 45 46
+inVuln, Str, Inviso, Rad, Allmap, or Lite-ampIn your eye! This menu doesn't work! Hahahaha!
+
+Text 17 19
+level 1: entrywayBioTech Entrance   
+
+Text 19 19
+level 2: underhallsSwitches & Bridges 
+
+Text 20 23
+level 3: the gantletThe Biolabs            
+
+Text 18 19
+level 4: the focusThe Descent        
+
+Text 26 27
+level 5: the waste tunnelsThe Pits                   
+
+Text 20 23
+level 6: the crusherThe River of Mutagen   
+
+Text 20 23
+level 7: dead simpleThe Tunnels            
+
+Text 25 27
+level 8: tricks and trapsThe Unknown                
+
+Text 16 19
+level 9: the pit                   

@@ -1,0 +1,218 @@
+======================================================================
+Archive Maintainer      : The original version contains a HUGE BUG!
+                          It comes with it's own exe installer which
+                          refuses to operate if it can not recognise
+                          the version of your doom2.exe. The installer
+                          failed to recognise full, legal versions of
+                          Doom2 v1.7 and 1.9.  I tried the installer
+                          in both Windows 95 and DOS, with no success.
+
+                          This update includes a recreated DeHackEd
+                          patch for use with 'Plain Vanilla' Doom II
+                          v1.9 or a Doom Source Port which can import
+                          DeHackEd patches (such as: Boom, PrBoom,
+                          MBF, SMMU, PrjDoom, ZDoom, Legacy, etc).
+
+                          Note also, that the manual is in Microsoft
+                          .wri format, so the authors supplied an old
+                          version of Microsoft Write (copyright
+                          Microsoft Corporation).  I do not know if
+                          write.exe will run on non-Windows systems,
+                          so it may be redundant.
+
+Update to               : ./idgames/levels/doom2/a-c/biotech.zip
+Advanced engine needed  : No
+Primary purpose         : Single+Coop play
+======================================================================
+Title                   : BioTech  (version 2)
+Filename                : biotech2.wad  biotech2.deh
+Release date            : January 2001
+Author                  : Beaverbeat, Protium, Khalad, TheRedOmen,
+                          Mark The Artist, and Kyle Kylin.
+Email Address           : Beaverbeat@aol.com  or  Khalad5131@aol.com
+
+Description             : You are a bounty hunter, hired by a small
+                          genetics research company named BioTech,
+                          to "fix" their current project which has
+                          gone horribly wrong.
+
+                          BioTech is a Partial Conversion for Doom II
+                          with new monsters, weapons, sounds, music,
+                          graphics, and a strong story line. The theme
+                          for the 9 levels is mostly high-tech, so
+                          you won't find any of the typical Doom2
+                          Satanic/Hell themes here.
+
+Additional Credits to   : Sparky of KISS Software (kelm@eisa.net.au)
+                          for the minor mods required to create the
+                          more User-friendly/System-friendly/Port-
+                          friendly "Version 2".
+======================================================================
+
+What's new in Version 2?
+------------------------
+
+Virtually no changes were made to the content, the changes are mostly
+related to installation and starting a game.
+
+The executable installer would not recognise legal, full versions of
+Doom2 v1.7 or v1.9, and hence it would not install the game!
+
+Although these fixes are trivial, they are essential if you want to
+install and play the game.
+
+The original DeHackEd patch was embedded within the installer, so I
+had to extract the data with a hex editor and manually enter it into
+DeHackEd v3.1.  
+
+The only changes to the DeHackEd patch are:
+- omitted some of the startup messages
+- removed the modified cheat codes (like, I could stop you from
+  cheating, anyway).
+
+A few minor fixes were also made to the wad:
+- rebuilt the wad and deleted the duplicate sprite resources.
+- fixed the sprite offsets of the Slime Stalker's snot balls.
+
+Once again, allow me to stress that my (Sparky's) work on BioTech is
+trivial, and the real credit remains with the original authors:
+  Beaverbeat, Protium, Khalad, TheRedOmen,
+  Mark The Artist, and Kyle Kylin.
+
+======================================================================
+
+* What is included *
+
+New levels              : 9
+Sounds                  : Yes
+Music                   : Yes (but only the first 3 levels)
+Graphics                : Yes - 2 new monsters, 1 new weapon, a new
+                          player skin, status-bar face, level names,
+                          and lots of mods to existing Doom2 monsters.
+Dehacked/BEX Patch      : Yes - external.
+Demos                   : Yes - all three - maps 3, 6 and 1
+                          skill 4 (UV), short (max 138sec), lmp v1.9
+Other                   : A manual (complete with pictures) in .wri
+                          format, and write.exe to view the manual.
+Other files required    : A Doom Source Port if you don't want to
+                          use a patched 'Plain Vanilla' Doom II
+                          (see installation instructions below).
+
+
+* Play Information *
+
+Game                    : Doom II v1.9
+Map #                   : Map01 to Map09
+Single Player           : Designed for
+Cooperative 2-4 Player  : Yes
+Deathmatch 2-4 Player   : Yes (check out the new player skin).
+Difficulty Settings     : Yes
+
+======================================================================
+
+* Installation *
+
+BioTech2 with 'Plain Vanilla' Doom II
+-------------------------------------
+
+To play BioTech2 with 'Plain Vanilla' Doom II you'll need to create a
+replacement exe file, and patch biotech2.wad with some extra sprite
+graphics.
+
+a) The exe:
+Create a hacked doom2.exe (called doomhack.exe) using DeHackEd v3.1
+and biotech2.deh.  For example:   dehacked -load biotech2.deh
+
+b) The Sprites:
+Due to a bug in Doom, you need to add all the extra sprite graphics
+from doom2.wad into biotech2.wad. You'll need a program such as DeuSF,
+WinTex, or NWT, and this will greatly increase the size of the wad.
+For example:  deusf -as biotech2.wad
+
+c) Playing the game:
+Once patched, you can load and run biotech2.wad like any other pwad.
+For example:    doomhack -file biotech2.wad
+
+
+BioTech2 with a Doom Source Port
+--------------------------------
+
+A 'better' and easier method is to use a Doom Source Port which can
+import DeHackEd patches and pwads containing sprite graphics; such as:
+Boom, PrBoom, MBF, SMMU, PrjDoom, ZDoom, ZDoomGL, Legacy, glBoom, etc.
+
+Patching is not required with these source ports, and the files can be
+used as-is.  For example:
+  Boom/PrBoom/MBF/SMMU/
+    PrjDoom/ZDoom/glBoom:  boom -deh biotech2 -file biotech2
+  Legacy (Win32)        :  legacy -deh biotech2.deh -file biotech2.wad
+  Legacy (3D mode) and
+  ZDoomGL v0.4b         :  the command line required is hardware
+                           specific, so see the port's documentation.
+
+
+Note, BioTech2 has not been fully tested with all of these source
+ports.  If one port doesn't work then just try another one.
+
+======================================================================
+
+* The Story *
+
+The story was contained in the original biotech.txt, which has been
+appended to the end of this document.
+
+For more detailed information about the story, weapons and monsters
+in BioTech2, see the BioTech Instruction Booklet (biotech2.wri).
+
+
+* Copyright / Permissions *
+
+Once again, see biotech2.wri for details.
+
+
+* Where to get the file that this text file describes *
+
+ftp://ftp.cdrom.com/pub/idgames/levels/doom2/a-c/biotech2.zip
+and mirrors
+
+
+The original BIOTECH.TXT file follows:
+
+
+======================================================================
+
+
+BioTech - A slightly new TC
+
+	BioTech is a TC for DOOM II.  It has all new monsters, weapons,
+graphics, music, levels, etc.  It was released a while back on AOL (hey, not
+ALL AOL users are bad) and everyone who responded to me loved it.  Just give
+this a try.
+  
+	You are a notorious bounty hunter, earning a living by finding crimin-
+als, missing persons, destroying military targets, you get the idea.  A new
+opportunity has arisen, a chance to earn enough money to retire.
+	A small research company, named BioTech, was working on what could
+have been the single largest genetics project in the history of man, the
+ability to alter human DNA to make a superior human race, stronger, healthier,
+and more intelligent.  UAC (the United Aerospace Corporation) took interest in
+the project because of the fact that the new race could be a very powerful war
+asset.  The scientists, eager to impress UAC, agreed to test their mutagen on
+human lab rats, criminals imprisoned by UAC.  The tests went underway, the
+scientists watching everything the captives did.
+	The subjects began to change dramatically, into stronger beings with
+strange abilities.  The problem was that the mutants looked hideous, and had
+very unstable and violent tempers.  But the scientists kept subjecting more
+and more subjects to the tests, and created more and more mutants.  It was
+clear what happened next.  The inhuman prisoners overran the base.
+	You have been hired to clear out BioTech, doing minimal damage to the
+base itself. Sounded easy enough, but when you arrived, you began to have sec-
+ond thoughts.  You can hear the mutants growling throughout the complex, and
+can sometimes hear the scientists calling out over the PA system... Good luck
+
+	There you go.  BioTech is mostly high-tech, but as you progress fur-
+ther into it, and lower in the building, the levels get progressively change
+from high tech and more dirt and rock.
+	A thing to note about BioTech is that it has nothing to do with Hell,
+Satan, etc.  You will not find any lava, blood, pentagrams, or crucifixes.  So
+no excuses!
