@@ -1,4 +1,6 @@
-pub trait Wad: 'static {
+use std::sync::Arc;
+
+pub trait Wad {
     /// Retrieves a named lump. The name must be unique.
     fn lump(&self, name: &str) -> Option<&Lump>;
 
@@ -21,3 +23,46 @@ impl Lump {
         self.data.len()
     }
 }
+
+impl<W: Wad + ?Sized> Wad for &'_ W {
+    fn lump(&self, name: &str) -> Option<&Lump> {
+        (**self).lump(name)
+    }
+
+    fn lumps_after(&self, start: &str, size: usize) -> Option<&[Lump]> {
+        (**self).lumps_after(start, size)
+    }
+
+    fn lumps_between(&self, start: &str, end: &str) -> Option<&[Lump]> {
+        (**self).lumps_between(start, end)
+    }
+}
+
+impl<W: Wad + ?Sized> Wad for Box<W> {
+    fn lump(&self, name: &str) -> Option<&Lump> {
+        (**self).lump(name)
+    }
+
+    fn lumps_after(&self, start: &str, size: usize) -> Option<&[Lump]> {
+        (**self).lumps_after(start, size)
+    }
+
+    fn lumps_between(&self, start: &str, end: &str) -> Option<&[Lump]> {
+        (**self).lumps_between(start, end)
+    }
+}
+
+impl<W: Wad + ?Sized> Wad for Arc<W> {
+    fn lump(&self, name: &str) -> Option<&Lump> {
+        (**self).lump(name)
+    }
+
+    fn lumps_after(&self, start: &str, size: usize) -> Option<&[Lump]> {
+        (**self).lumps_after(start, size)
+    }
+
+    fn lumps_between(&self, start: &str, end: &str) -> Option<&[Lump]> {
+        (**self).lumps_between(start, end)
+    }
+}
+

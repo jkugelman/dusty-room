@@ -1,4 +1,4 @@
-use std::{io, path::Path};
+use std::{io, path::Path, sync::Arc};
 
 use crate::{Lump, Wad, WadFile, WadType};
 
@@ -6,8 +6,9 @@ use crate::{Lump, Wad, WadFile, WadType};
 /// files overlaying earlier ones. Usually the first WAD is a IWAD and the rest
 /// are PWADs, but that's not a strict requirement. Other combinations are
 /// allowed.
+#[derive(Clone)]
 pub struct WadStack {
-    wads: Vec<Box<dyn Wad>>,
+    wads: Vec<Arc<dyn Wad>>,
 }
 
 impl WadStack {
@@ -18,7 +19,7 @@ impl WadStack {
 
         match wad.wad_type() {
             WadType::Iwad => Ok(Self {
-                wads: vec![Box::new(wad)],
+                wads: vec![Arc::new(wad)],
             }),
             WadType::Pwad => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -27,20 +28,20 @@ impl WadStack {
         }
     }
 
-    /// Adds a PWAD that overrides files earlier in the stack.
+    /// Adds a PWAD that overlays files earlier in the stack.
     pub fn pwad(mut self, file: impl AsRef<Path>) -> io::Result<Self> {
         self.add_pwad(file)?;
         Ok(self)
     }
 
-    /// Adds a PWAD that overrides files earlier in the stack.
+    /// Adds a PWAD that overlays files earlier in the stack.
     pub fn add_pwad(&mut self, file: impl AsRef<Path>) -> io::Result<()> {
         let file = file.as_ref();
         let wad = WadFile::open(file)?;
 
         match wad.wad_type() {
             WadType::Pwad => {
-                self.wads.push(Box::new(wad));
+                self.wads.push(Arc::new(wad));
                 Ok(())
             }
             WadType::Iwad => Err(io::Error::new(
@@ -58,8 +59,8 @@ impl WadStack {
 
     /// Adds a generic [`Wad`] to the stack. Use this if you want to bypass
     /// IWAD/PWAD type checking.
-    pub fn add(&mut self, wad: impl Wad) {
-        self.wads.push(Box::new(wad));
+    pub fn add(&mut self, wad: impl Wad + 'static) {
+        self.wads.push(Arc::new(wad));
     }
 }
 
@@ -188,16 +189,33 @@ mod tests {
 
     #[test]
     fn no_type_checking() {
-        let mut wad = WadStack::new();
+        let mut super_wad = WadStack::new();
 
         // Nonsensical ordering.
-        wad.add(WadFile::open(test_path("killer.wad")).unwrap());
-        wad.add(WadFile::open(test_path("doom2.wad")).unwrap());
-        wad.add(WadFile::open(test_path("doom.wad")).unwrap());
-        wad.add(WadFile::open(test_path("biotech.wad")).unwrap());
+        super_wad.add(WadFile::open(test_path("killer.wad")).unwrap());
+        super_wad.add(WadFile::open(test_path("doom2.wad")).unwrap());
+        super_wad.add(WadFile::open(test_path("doom.wad")).unwrap());
+        super_wad.add(WadFile::open(test_path("biotech.wad")).unwrap());
 
-        assert!(wad.lump("E1M1").is_some());
-        assert!(wad.lump("MAP01").is_some());
+        assert!(super_wad.lump("E1M1").is_some());
+        assert!(super_wad.lump("MAP01").is_some());
+    }
+
+    #[test]
+    fn add_static_refs() {
+        let wad: &'static _ = Box::leak(Box::new(WadStack::new()));
+        let mut stack = WadStack::new();
+        stack.add(wad);
+    }
+
+    #[test]
+    fn add_trait_objects() {
+        let boxed: Box<dyn Wad> = Box::new(WadStack::new());
+        let arced: Arc<dyn Wad> = Arc::new(WadStack::new());
+
+        let mut stack = WadStack::new();
+        stack.add(boxed);
+        stack.add(arced);
     }
 
     fn test_path(path: impl AsRef<Path>) -> PathBuf {
