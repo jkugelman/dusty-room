@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use std::{io, path::Path};
 
+use crate::Wad;
+
 use super::LumpBlock;
 use super::WadFile;
 use super::WadType;
@@ -51,11 +53,13 @@ impl WadStack {
             )),
         }
     }
+}
 
+impl Wad for WadStack {
     /// Retrieves a named lump. The name must be unique.
     ///
     /// Lumps in later files override lumps from earlier ones.
-    pub fn lump(&self, name: &str) -> Option<Arc<[u8]>> {
+    fn lump(&self, name: &str) -> Option<Arc<[u8]>> {
         for pwad in self.pwads.iter().rev() {
             if let Some(lump) = pwad.lump(name) {
                 return Some(lump);
@@ -79,7 +83,7 @@ impl WadStack {
     /// let map = wad.lumps_after("E1M5", 10);
     /// # Ok::<(), std::io::Error>(())
     /// ```
-    pub fn lumps_after(&self, start: &str, size: usize) -> Option<LumpBlock> {
+    fn lumps_after(&self, start: &str, size: usize) -> Option<LumpBlock> {
         for pwad in self.pwads.iter().rev() {
             if let Some(lumps) = pwad.lumps_after(start, size) {
                 return Some(lumps);
@@ -103,7 +107,7 @@ impl WadStack {
     /// let sprites = wad.lumps_between("SS_START", "SS_END");
     /// # Ok::<(), std::io::Error>(())
     /// ```
-    pub fn lumps_between(&self, start: &str, end: &str) -> Option<LumpBlock> {
+    fn lumps_between(&self, start: &str, end: &str) -> Option<LumpBlock> {
         for pwad in self.pwads.iter().rev() {
             if let Some(lumps) = pwad.lumps_between(start, end) {
                 return Some(lumps);
