@@ -19,10 +19,8 @@ pub struct WadFile {
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum WadType {
-    /// IWAD
-    Initial,
-    /// PWAD
-    Patch,
+    Iwad,
+    Pwad,
 }
 
 struct Lump {
@@ -58,12 +56,10 @@ impl WadFile {
         })
     }
 
-    /// File path.
     pub fn path(&self) -> &Path {
         &self.path
     }
 
-    /// Is this an IWAD or PWAD?
     pub fn wad_type(&self) -> WadType {
         self.wad_type
     }
@@ -164,8 +160,8 @@ fn read_wad_type(mut file: impl Read) -> io::Result<WadType> {
     file.read_exact(&mut buffer)?;
 
     match &buffer {
-        b"IWAD" => Ok(WadType::Initial),
-        b"PWAD" => Ok(WadType::Patch),
+        b"IWAD" => Ok(WadType::Iwad),
+        b"PWAD" => Ok(WadType::Pwad),
 
         _ => Err(io::Error::new(
             io::ErrorKind::InvalidData,
@@ -239,11 +235,11 @@ mod test {
     #[test]
     fn header() {
         let wad = test_wad("doom.wad");
-        assert_eq!(wad.wad_type, WadType::Initial);
+        assert_eq!(wad.wad_type, WadType::Iwad);
         assert_eq!(wad.lumps.len(), 1264);
 
         let wad = test_wad("killer.wad");
-        assert_eq!(wad.wad_type, WadType::Patch);
+        assert_eq!(wad.wad_type, WadType::Pwad);
         assert_eq!(wad.lumps.len(), 55);
     }
 

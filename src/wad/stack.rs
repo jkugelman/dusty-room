@@ -5,47 +5,47 @@ use super::LumpBlock;
 use super::WadFile;
 use super::WadType;
 
-/// A base IWAD plus zero or more PWAD patches layered on top.
+/// An IWAD plus zero or more PWADs layered on top.
 pub struct WadStack {
-    base: WadFile,
-    patches: Vec<WadFile>,
+    iwad: WadFile,
+    pwads: Vec<WadFile>,
 }
 
 impl WadStack {
-    /// Creates a stack starting with a base IWAD such as `doom.wad`.
-    pub fn base(file: impl AsRef<Path>) -> io::Result<Self> {
+    /// Creates a stack starting with a IWAD such as `doom.wad`.
+    pub fn iwad(file: impl AsRef<Path>) -> io::Result<Self> {
         let file = file.as_ref();
         let wad = WadFile::open(file)?;
 
         match wad.wad_type() {
-            WadType::Initial => Ok(Self {
-                base: wad,
-                patches: vec![],
+            WadType::Iwad => Ok(Self {
+                iwad: wad,
+                pwads: vec![],
             }),
-            WadType::Patch => Err(io::Error::new(
+            WadType::Pwad => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("{} not an IWAD", file.display()),
             )),
         }
     }
 
-    /// Adds a PWAD patch that overrides wads earlier in the stack.
-    pub fn patch(mut self, file: impl AsRef<Path>) -> io::Result<Self> {
-        self.add_patch(file)?;
+    /// Adds a PWAD that overrides files earlier in the stack.
+    pub fn pwad(mut self, file: impl AsRef<Path>) -> io::Result<Self> {
+        self.add_pwad(file)?;
         Ok(self)
     }
 
-    /// Adds a PWAD patch that overrides wads earlier in the stack.
-    pub fn add_patch(&mut self, file: impl AsRef<Path>) -> io::Result<()> {
+    /// Adds a PWAD that overrides files earlier in the stack.
+    pub fn add_pwad(&mut self, file: impl AsRef<Path>) -> io::Result<()> {
         let file = file.as_ref();
         let wad = WadFile::open(file)?;
 
         match wad.wad_type() {
-            WadType::Patch => {
-                self.patches.push(wad);
+            WadType::Pwad => {
+                self.pwads.push(wad);
                 Ok(())
             }
-            WadType::Initial => Err(io::Error::new(
+            WadType::Iwad => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("{} not a PWAD", file.display()),
             )),
@@ -54,63 +54,63 @@ impl WadStack {
 
     /// Retrieves a named lump. The name must be unique.
     ///
-    /// Lumps in patch wads override the base wad.
+    /// Lumps in later files override lumps from earlier ones.
     pub fn lump(&self, name: &str) -> Option<Arc<[u8]>> {
-        for patch in self.patches.iter().rev() {
-            if let Some(lump) = patch.lump(name) {
+        for pwad in self.pwads.iter().rev() {
+            if let Some(lump) = pwad.lump(name) {
                 return Some(lump);
             }
         }
 
-        self.base.lump(name)
+        self.iwad.lump(name)
     }
 
     /// Retrieves a block of `size` lumps following a named marker. The marker lump
     /// is not included in the result.
     ///
-    /// Blocks in patch wads override the entire block from the base wad.
+    /// Blocks in later files override entire blocks from earlier files.
     ///
     /// # Example
     ///
     /// ```no_run
     /// use kdoom::WadStack;
     ///
-    /// let wad = WadStack::base("doom.wad")?.patch("killer.wad")?;
+    /// let wad = WadStack::iwad("doom.wad")?.pwad("killer.wad")?;
     /// let map = wad.lumps_after("E1M5", 10);
     /// # Ok::<(), std::io::Error>(())
     /// ```
     pub fn lumps_after(&self, start: &str, size: usize) -> Option<LumpBlock> {
-        for patch in self.patches.iter().rev() {
-            if let Some(lumps) = patch.lumps_after(start, size) {
+        for pwad in self.pwads.iter().rev() {
+            if let Some(lumps) = pwad.lumps_after(start, size) {
                 return Some(lumps);
             }
         }
 
-        self.base.lumps_after(start, size)
+        self.iwad.lumps_after(start, size)
     }
 
     /// Retrieves a block of lumps between start and end markers. The marker lumps
     /// are not included in the result.
     ///
-    /// Blocks in patch wads override the entire block from the base wad.
+    /// Blocks in later wads override entire blocks from earlier files.
     ///
     /// # Example
     ///
     /// ```no_run
     /// use kdoom::WadStack;
     ///
-    /// let wad = WadStack::base("doom2.wad")?.patch("biotech.wad")?;
+    /// let wad = WadStack::iwad("doom2.wad")?.pwad("biotech.wad")?;
     /// let sprites = wad.lumps_between("SS_START", "SS_END");
     /// # Ok::<(), std::io::Error>(())
     /// ```
     pub fn lumps_between(&self, start: &str, end: &str) -> Option<LumpBlock> {
-        for patch in self.patches.iter().rev() {
-            if let Some(lumps) = patch.lumps_between(start, end) {
+        for pwad in self.pwads.iter().rev() {
+            if let Some(lumps) = pwad.lumps_between(start, end) {
                 return Some(lumps);
             }
         }
 
-        self.base.lumps_between(start, end)
+        self.iwad.lumps_between(start, end)
     }
 }
 
@@ -123,22 +123,22 @@ mod tests {
     #[test]
     fn iwad_then_pwads() {
         // IWAD + PWAD = success.
-        WadStack::base(test_path("doom.wad"))
+        WadStack::iwad(test_path("doom.wad"))
             .unwrap()
-            .patch(test_path("killer.wad"))
+            .pwad(test_path("killer.wad"))
             .unwrap();
 
-        // Can't add an IWAD as a patch.
-        let mut wad = WadStack::base(test_path("doom.wad")).unwrap();
-        assert!(wad.add_patch(test_path("doom.wad")).is_err());
+        // IWAD + IWAD = error.
+        let mut wad = WadStack::iwad(test_path("doom.wad")).unwrap();
+        assert!(wad.add_pwad(test_path("doom2.wad")).is_err());
 
         // Can't start with a PWAD.
-        assert!(WadStack::base(test_path("killer.wad")).is_err());
+        assert!(WadStack::iwad(test_path("killer.wad")).is_err());
     }
 
     #[test]
     fn layering() {
-        let mut wad = WadStack::base(test_path("doom2.wad")).unwrap();
+        let mut wad = WadStack::iwad(test_path("doom2.wad")).unwrap();
         assert_eq!(wad.lump("DEMO3").unwrap().len(), 17898);
         assert_eq!(
             wad.lumps_after("MAP01", 10)
@@ -161,7 +161,7 @@ mod tests {
         );
         assert_eq!(wad.lumps_between("S_START", "S_END").unwrap().len(), 1381);
 
-        wad.add_patch(test_path("biotech.wad")).unwrap();
+        wad.add_pwad(test_path("biotech.wad")).unwrap();
         assert_eq!(wad.lump("DEMO3").unwrap().len(), 9490);
         assert_eq!(
             wad.lumps_after("MAP01", 10)
