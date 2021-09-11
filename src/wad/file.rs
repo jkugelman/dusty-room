@@ -17,6 +17,19 @@ pub struct WadFile {
     lump_indices: HashMap<String, LumpIndex>,
 }
 
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+pub enum WadType {
+    /// IWAD
+    Initial,
+    /// PWAD
+    Patch,
+}
+
+struct Lump {
+    name: String,
+    contents: Arc<[u8]>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum LumpIndex {
     Unique(usize),
@@ -28,43 +41,18 @@ pub type LumpBlock = IndexMap<String, Arc<[u8]>>;
 impl WadFile {
     /// Reads a WAD file from disk.
     pub fn open(path: impl AsRef<Path>) -> io::Result<Self> {
-        // Open file.
         let path = path.as_ref();
         let file = File::open(path)?;
         let mut file = BufReader::new(file);
 
-        // Read header.
-        let header = Header::read_from(&mut file)?;
-
-        // Read directory of lump locations.
-        let directory =
-            Directory::read_from(&mut file, header.directory_offset, header.lump_count)?;
-        let lump_locations = directory.lumps;
-
-        // Create map of names to indices. Store `NotUnique` if a name is duplicated.
-        let mut lump_indices = HashMap::new();
-        for (index, lump_location) in lump_locations.iter().enumerate() {
-            lump_indices
-                .entry(lump_location.name.clone())
-                .and_modify(|e| *e = LumpIndex::NotUnique)
-                .or_insert(LumpIndex::Unique(index));
-        }
-
-        // Read lumps from file.
-        let mut lumps = Vec::new();
-        for lump_location in lump_locations {
-            let mut contents = vec![0u8; lump_location.size.try_into().unwrap()];
-            file.seek(SeekFrom::Start(lump_location.offset.into()))?;
-            file.read_exact(&mut contents)?;
-            lumps.push(Lump {
-                name: lump_location.name,
-                contents: contents.into_boxed_slice().into(),
-            });
-        }
+        let (wad_type, lump_count, directory_offset) = read_header(&mut file)?;
+        let lump_locations = read_directory(&mut file, directory_offset, lump_count)?;
+        let lumps = read_lumps(&lump_locations, &mut file)?;
+        let lump_indices = build_indices(&lump_locations);
 
         Ok(WadFile {
             path: path.to_owned(),
-            wad_type: header.wad_type,
+            wad_type,
             lumps,
             lump_indices,
         })
@@ -126,7 +114,6 @@ impl WadFile {
         self.lump_block(start_index, size)
     }
 
-    /// Looks up a lump's index.
     fn lump_index(&self, name: &str) -> Option<usize> {
         self.lump_indices.get(name).and_then(|&index| match index {
             LumpIndex::Unique(index) => Some(index),
@@ -134,12 +121,10 @@ impl WadFile {
         })
     }
 
-    /// Loads a lump from disk and caches it to speed up future lookups.
     fn lump_contents(&self, index: usize) -> Arc<[u8]> {
         self.lumps[index].contents.clone()
     }
 
-    /// Retrieves a block of lumps.
     fn lump_block(&self, start_index: usize, size: usize) -> Option<LumpBlock> {
         if start_index + size >= self.lumps.len() {
             return None;
@@ -157,95 +142,94 @@ impl WadFile {
 }
 
 #[derive(Debug)]
-struct Header {
-    pub wad_type: WadType,
-    pub lump_count: u32,
-    pub directory_offset: u32,
-}
-
-impl Header {
-    fn read_from(mut file: impl Read + Seek) -> io::Result<Self> {
-        file.seek(SeekFrom::Start(0))?;
-
-        let wad_type = WadType::read_from(&mut file)?;
-        let lump_count = file.read_u32::<LittleEndian>()?;
-        let directory_offset = file.read_u32::<LittleEndian>()?;
-
-        Ok(Self {
-            wad_type,
-            lump_count,
-            directory_offset,
-        })
-    }
-}
-
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-pub enum WadType {
-    /// IWAD
-    Initial,
-    /// PWAD
-    Patch,
-}
-
-impl WadType {
-    fn read_from(mut file: impl Read) -> io::Result<Self> {
-        let mut buffer = [0u8; 4];
-        file.read_exact(&mut buffer)?;
-
-        match &buffer {
-            b"IWAD" => Ok(WadType::Initial),
-            b"PWAD" => Ok(WadType::Patch),
-
-            _ => Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("{:?} neither IWAD nor PWAD", buffer),
-            )),
-        }
-    }
-}
-
-#[derive(Debug)]
-struct Directory {
-    lumps: Vec<LumpLocation>,
-}
-
-impl Directory {
-    fn read_from(
-        mut file: impl Read + Seek,
-        directory_offset: u32,
-        lump_count: u32,
-    ) -> io::Result<Self> {
-        file.seek(SeekFrom::Start(directory_offset.into()))?;
-
-        let mut lumps = Vec::with_capacity(lump_count.try_into().unwrap());
-
-        for _ in 0..lump_count {
-            let offset = file.read_u32::<LittleEndian>()?;
-            let size = file.read_u32::<LittleEndian>()?;
-            let mut name = [0u8; 8];
-            file.read_exact(&mut name)?;
-            let name = std::str::from_utf8(&name)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?
-                .trim_end_matches('\0')
-                .to_owned();
-
-            lumps.push(LumpLocation { offset, size, name });
-        }
-
-        Ok(Directory { lumps })
-    }
-}
-
-#[derive(Debug)]
 struct LumpLocation {
     offset: u32,
     size: u32,
     name: String,
 }
 
-struct Lump {
-    name: String,
-    contents: Arc<[u8]>,
+/// Reads wad type, lump count, and directory offset.
+fn read_header(mut file: impl Read + Seek) -> io::Result<(WadType, u32, u32)> {
+    file.seek(SeekFrom::Start(0))?;
+
+    let wad_type = read_wad_type(&mut file)?;
+    let lump_count = file.read_u32::<LittleEndian>()?;
+    let directory_offset = file.read_u32::<LittleEndian>()?;
+
+    Ok((wad_type, lump_count, directory_offset))
+}
+
+fn read_wad_type(mut file: impl Read) -> io::Result<WadType> {
+    let mut buffer = [0u8; 4];
+    file.read_exact(&mut buffer)?;
+
+    match &buffer {
+        b"IWAD" => Ok(WadType::Initial),
+        b"PWAD" => Ok(WadType::Patch),
+
+        _ => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("{:?} neither IWAD nor PWAD", buffer),
+        )),
+    }
+}
+
+fn read_directory(
+    mut file: impl Read + Seek,
+    directory_offset: u32,
+    lump_count: u32,
+) -> io::Result<Vec<LumpLocation>> {
+    file.seek(SeekFrom::Start(directory_offset.into()))?;
+
+    let mut lump_locations = Vec::with_capacity(lump_count.try_into().unwrap());
+
+    for _ in 0..lump_count {
+        let offset = file.read_u32::<LittleEndian>()?;
+        let size = file.read_u32::<LittleEndian>()?;
+        let mut name = [0u8; 8];
+        file.read_exact(&mut name)?;
+        let name = std::str::from_utf8(&name)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?
+            .trim_end_matches('\0')
+            .to_owned();
+
+        lump_locations.push(LumpLocation { offset, size, name });
+    }
+
+    Ok(lump_locations)
+}
+
+fn read_lumps(
+    lump_locations: &[LumpLocation],
+    mut file: impl Read + Seek,
+) -> Result<Vec<Lump>, io::Error> {
+    let mut lumps = Vec::new();
+
+    for lump_location in lump_locations {
+        let mut contents = vec![0u8; lump_location.size.try_into().unwrap()];
+        file.seek(SeekFrom::Start(lump_location.offset.into()))?;
+        file.read_exact(&mut contents)?;
+        lumps.push(Lump {
+            name: lump_location.name.clone(),
+            contents: contents.into_boxed_slice().into(),
+        });
+    }
+
+    Ok(lumps)
+}
+
+/// Create map of names to indices. Store `NotUnique` if a name is duplicated.
+fn build_indices(lump_locations: &[LumpLocation]) -> HashMap<String, LumpIndex> {
+    let mut lump_indices = HashMap::new();
+
+    for (index, lump_location) in lump_locations.iter().enumerate() {
+        lump_indices
+            .entry(lump_location.name.clone())
+            .and_modify(|e| *e = LumpIndex::NotUnique)
+            .or_insert(LumpIndex::Unique(index));
+    }
+
+    lump_indices
 }
 
 #[cfg(test)]
