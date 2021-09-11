@@ -12,7 +12,8 @@ pub struct WadStack {
 }
 
 impl WadStack {
-    pub fn new(file: impl AsRef<Path>) -> io::Result<Self> {
+    /// Creates a stack starting with a base IWAD such as `doom.wad`.
+    pub fn base(file: impl AsRef<Path>) -> io::Result<Self> {
         let file = file.as_ref();
         let wad = WadFile::open(file)?;
 
@@ -28,7 +29,14 @@ impl WadStack {
         }
     }
 
-    pub fn add(&mut self, file: impl AsRef<Path>) -> io::Result<()> {
+    /// Adds a PWAD patch that overrides wads earlier in the stack.
+    pub fn patch(mut self, file: impl AsRef<Path>) -> io::Result<Self> {
+        self.add_patch(file)?;
+        Ok(self)
+    }
+
+    /// Adds a PWAD patch that overrides wads earlier in the stack.
+    pub fn add_patch(&mut self, file: impl AsRef<Path>) -> io::Result<()> {
         let file = file.as_ref();
         let wad = WadFile::open(file)?;
 
@@ -65,8 +73,7 @@ impl WadStack {
     /// # Example
     ///
     /// ```
-    /// let mut wad = WadStack::new("doom.wad")?;
-    /// wad.add("killer.wad")?;
+    /// let wad = WadStack::base("doom.wad")?.patch("killer.wad")?;
     /// let map = wad.lumps_after("E1M5", 10)?;
     /// ```
     pub fn lumps_after(&self, start: &str, size: usize) -> io::Result<LumpBlock> {
@@ -87,8 +94,7 @@ impl WadStack {
     /// # Example
     ///
     /// ```
-    /// let mut wad = WadStack::new("doom2.wad")?;
-    /// wad.add("biotech.wad")
+    /// let wad = WadStack::new("doom2.wad")?.patch("biotech.wad")?;
     /// let sprites = wad.lumps_between("SS_START", "SS_END")?;
     /// ```
     pub fn lumps_between(&self, start: &str, end: &str) -> io::Result<LumpBlock> {
@@ -110,22 +116,22 @@ mod tests {
 
     #[test]
     fn iwad_then_pwads() -> io::Result<()> {
-        let mut wad = WadStack::new(test_path("doom.wad"))?;
-        wad.add(test_path("killer.wad"))?;
+        // IWAD + PWAD = success.
+        WadStack::base(test_path("doom.wad"))?.patch(test_path("killer.wad"))?;
 
         // Can't add an IWAD as a patch.
-        let mut wad = WadStack::new(test_path("doom.wad"))?;
-        assert!(wad.add(test_path("doom.wad")).is_err());
+        let mut wad = WadStack::base(test_path("doom.wad"))?;
+        assert!(wad.add_patch(test_path("doom.wad")).is_err());
 
         // Can't start with a PWAD.
-        assert!(WadStack::new(test_path("killer.wad")).is_err());
+        assert!(WadStack::base(test_path("killer.wad")).is_err());
 
         Ok(())
     }
 
     #[test]
     fn layering() -> io::Result<()> {
-        let mut wad = WadStack::new(test_path("doom2.wad"))?;
+        let mut wad = WadStack::base(test_path("doom2.wad"))?;
         assert_eq!(wad.lump("DEMO3")?.len(), 17898);
         assert_eq!(
             wad.lumps_after("MAP01", 10)?
@@ -147,7 +153,7 @@ mod tests {
         );
         assert_eq!(wad.lumps_between("S_START", "S_END")?.len(), 1381);
 
-        wad.add(test_path("biotech.wad"))?;
+        wad.add_patch(test_path("biotech.wad"))?;
         assert_eq!(wad.lump("DEMO3")?.len(), 9490);
         assert_eq!(
             wad.lumps_after("MAP01", 10)?
