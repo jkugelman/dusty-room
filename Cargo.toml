@@ -7,4 +7,3 @@ edition = "2018"
 
 [dependencies]
 byteorder = "1.4.3"
-indexmap = "1.7.0"
