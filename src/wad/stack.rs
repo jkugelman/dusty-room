@@ -1,4 +1,4 @@
-use std::{io, path::Path, sync::Arc};
+use std::{fmt, io, path::Path, sync::Arc};
 
 use crate::{Lump, Wad, WadFile, WadType};
 
@@ -119,6 +119,12 @@ impl Wad for WadStack {
     }
 }
 
+impl fmt::Debug for WadStack {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_list().entries(self.wads.iter()).finish()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -134,10 +140,10 @@ mod tests {
 
         // IWAD + IWAD = error.
         let wad = WadStack::iwad(DOOM_WAD_PATH).unwrap();
-        assert!(wad.pwad(DOOM2_WAD_PATH).is_err());
+        assert_matches!(wad.pwad(DOOM2_WAD_PATH), Err(_));
 
         // Can't start with a PWAD.
-        assert!(WadStack::iwad(KILLER_WAD_PATH).is_err());
+        assert_matches!(WadStack::iwad(KILLER_WAD_PATH), Err(_));
     }
 
     #[test]
@@ -145,12 +151,13 @@ mod tests {
         assert_eq!(DOOM2_WAD.lump("DEMO3").unwrap().size(), 17898);
         assert_eq!(
             DOOM2_WAD
-                .lumps_after("MAP01", 10)
+                .lumps_after("MAP01", 11)
                 .unwrap()
                 .iter()
                 .map(|lump| (lump.name.as_str(), lump.size()))
                 .collect::<Vec<_>>(),
             [
+                ("MAP01", 0),
                 ("THINGS", 690),
                 ("LINEDEFS", 5180),
                 ("SIDEDEFS", 15870),
@@ -165,18 +172,19 @@ mod tests {
         );
         assert_eq!(
             DOOM2_WAD.lumps_between("S_START", "S_END").unwrap().len(),
-            1381
+            1383
         );
 
         let wad = DOOM2_WAD.and_unchecked(&*BIOTECH_WAD);
         assert_eq!(wad.lump("DEMO3").unwrap().size(), 9490);
         assert_eq!(
-            wad.lumps_after("MAP01", 10)
+            wad.lumps_after("MAP01", 11)
                 .unwrap()
                 .iter()
                 .map(|lump| (lump.name.as_str(), lump.size()))
                 .collect::<Vec<_>>(),
             [
+                ("MAP01", 0),
                 ("THINGS", 1050),
                 ("LINEDEFS", 5040),
                 ("SIDEDEFS", 17400),
@@ -189,8 +197,8 @@ mod tests {
                 ("BLOCKMAP", 4362),
             ],
         );
-        assert_eq!(wad.lumps_between("S_START", "S_END").unwrap().len(), 1381);
-        assert_eq!(wad.lumps_between("SS_START", "SS_END").unwrap().len(), 263);
+        assert_eq!(wad.lumps_between("S_START", "S_END").unwrap().len(), 1383);
+        assert_eq!(wad.lumps_between("SS_START", "SS_END").unwrap().len(), 265);
     }
 
     #[test]
@@ -202,8 +210,8 @@ mod tests {
             .and_unchecked(&*DOOM_WAD)
             .and_unchecked(&*BIOTECH_WAD);
 
-        assert!(silly_wad.lump("E1M1").is_some());
-        assert!(silly_wad.lump("MAP01").is_some());
+        assert_matches!(silly_wad.lump("E1M1"), Some(_));
+        assert_matches!(silly_wad.lump("MAP01"), Some(_));
     }
 
     // Doesn't need to run, just compile.

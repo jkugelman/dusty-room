@@ -2,6 +2,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use std::{
     collections::HashMap,
     convert::TryInto,
+    fmt,
     fs::File,
     io::{self, BufReader, Read, Seek, SeekFrom},
     path::{Path, PathBuf},
@@ -83,11 +84,11 @@ impl Wad for WadFile {
     /// use kdoom::WadFile;
     ///
     /// let wad = WadFile::open("doom.wad")?;
-    /// let map = wad.lumps_after("E1M5", 10);
+    /// let map = wad.lumps_after("E1M5", 11);
     /// # Ok::<(), std::io::Error>(())
     /// ```
     fn lumps_after(&self, start: &str, size: usize) -> Option<&[Lump]> {
-        let start_index = self.lump_index(start)? + 1;
+        let start_index = self.lump_index(start)?;
         self.lumps.get(start_index..start_index + size)
     }
 
@@ -104,10 +105,16 @@ impl Wad for WadFile {
     /// # Ok::<(), std::io::Error>(())
     /// ```
     fn lumps_between(&self, start: &str, end: &str) -> Option<&[Lump]> {
-        let start_index = self.lump_index(start)? + 1;
+        let start_index = self.lump_index(start)?;
         let end_index = self.lump_index(end)?;
 
-        self.lumps.get(start_index..end_index)
+        self.lumps.get(start_index..end_index + 1)
+    }
+}
+
+impl fmt::Debug for WadFile {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", &self.path)
     }
 }
 
@@ -225,20 +232,20 @@ mod test {
 
     #[test]
     fn detect_duplicates() {
-        assert!(DOOM_WAD_FILE.lump_index("E1M1").is_some());
-        assert!(DOOM_WAD_FILE.lump_index("THINGS").is_none());
-        assert!(DOOM_WAD_FILE.lump_index("VERTEXES").is_none());
-        assert!(DOOM_WAD_FILE.lump_index("SECTORS").is_none());
+        assert_matches!(DOOM_WAD_FILE.lump_index("E1M1"), Some(_));
+        assert_matches!(DOOM_WAD_FILE.lump_index("THINGS"), None);
+        assert_matches!(DOOM_WAD_FILE.lump_index("VERTEXES"), None);
+        assert_matches!(DOOM_WAD_FILE.lump_index("SECTORS"), None);
     }
 
     #[test]
     fn lumps_after() {
-        let map = DOOM_WAD_FILE.lumps_after("E1M8", 10).unwrap();
-        assert_eq!(map.len(), 10);
+        let map = DOOM_WAD_FILE.lumps_after("E1M8", 11).unwrap();
+        assert_eq!(map.len(), 11);
         assert_eq!(
             map.iter().map(|l| &l.name).collect::<Vec<_>>(),
             [
-                "THINGS", "LINEDEFS", "SIDEDEFS", "VERTEXES", "SEGS", "SSECTORS", "NODES",
+                "E1M8", "THINGS", "LINEDEFS", "SIDEDEFS", "VERTEXES", "SEGS", "SSECTORS", "NODES",
                 "SECTORS", "REJECT", "BLOCKMAP"
             ],
         );
@@ -247,12 +254,12 @@ mod test {
     #[test]
     fn lumps_between() {
         let sprites = DOOM_WAD_FILE.lumps_between("S_START", "S_END").unwrap();
-        assert_ne!(sprites.first().unwrap().name, "S_START");
-        assert_ne!(sprites.last().unwrap().name, "S_END");
-        assert_eq!(sprites.len(), 483);
-        assert_eq!(sprites[100].name, "SARGB5");
+        assert_eq!(sprites.first().unwrap().name, "S_START");
+        assert_eq!(sprites.last().unwrap().name, "S_END");
+        assert_eq!(sprites.len(), 485);
+        assert_eq!(sprites[100].name, "SARGB4B6");
 
-        assert!(DOOM_WAD_FILE.lumps_between("S_END", "S_START").is_none());
+        assert_matches!(DOOM_WAD_FILE.lumps_between("S_END", "S_START"), None);
     }
 
     #[test]

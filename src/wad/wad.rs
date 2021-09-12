@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 
 use crate::Lump;
 #[allow(unused_imports)]
@@ -6,16 +6,16 @@ use crate::{WadFile, WadStack};
 
 /// A `Wad` allows for retrieval of lumps in either a single [`WadFile`] or in a
 /// layered [`WadStack`] of files.
-pub trait Wad {
+pub trait Wad: fmt::Debug {
     /// Retrieves a named lump. The name must be unique.
     fn lump(&self, name: &str) -> Option<&Lump>;
 
-    /// Retrieves a block of `size` lumps following a named marker. The marker lump
-    /// is not included in the result.
+    /// Retrieves a block of `size` lumps starting with a named marker. The marker
+    /// lump is included in the result.
     fn lumps_after(&self, start: &str, size: usize) -> Option<&[Lump]>;
 
     /// Retrieves a block of lumps between start and end markers. The marker lumps
-    /// are not included in the result.
+    /// are included in the result.
     fn lumps_between(&self, start: &str, end: &str) -> Option<&[Lump]>;
 }
 

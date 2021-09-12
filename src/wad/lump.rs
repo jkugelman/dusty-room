@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[allow(unused_imports)]
 use crate::Wad;
 
@@ -10,5 +12,11 @@ pub struct Lump {
 impl Lump {
     pub fn size(&self) -> usize {
         self.data.len()
+    }
+}
+
+impl fmt::Debug for Lump {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Lump").field("name", &self.name).finish()
     }
 }
