@@ -8,7 +8,7 @@ use crate::{Lump, Wad, WadFile, WadType};
 /// allowed.
 #[derive(Clone)]
 pub struct WadStack {
-    wads: Vec<Arc<dyn Wad>>,
+    wads: Vec<Arc<dyn Wad + Send + Sync>>,
 }
 
 impl WadStack {
@@ -65,7 +65,7 @@ impl WadStack {
 
     /// Adds a generic [`Wad`] to the stack. Use this if you want to bypass
     /// IWAD/PWAD type checking.
-    pub fn add(&mut self, wad: impl Wad + 'static) {
+    pub fn add(&mut self, wad: impl Wad + Send + Sync + 'static) {
         self.wads.push(Arc::new(wad));
     }
 }
@@ -207,22 +207,26 @@ mod tests {
         assert!(super_wad.lump("MAP01").is_some());
     }
 
-    #[test]
-    fn add_static_refs() {
+    // Doesn't need to run, just compile.
+    fn _can_add_static_refs() {
         let wad: &'static _ = Box::leak(Box::new(WadStack::new()));
         let mut stack = WadStack::new();
         stack.add(wad);
     }
 
-    #[test]
-    fn add_trait_objects() {
-        let boxed: Box<dyn Wad> = Box::new(WadStack::new());
-        let arced: Arc<dyn Wad> = Arc::new(WadStack::new());
+    // Doesn't need to run, just compile.
+    fn _can_add_trait_objects() {
+        let boxed: Box<dyn Wad + Send + Sync> = Box::new(WadStack::new());
+        let arced: Arc<dyn Wad + Send + Sync> = Arc::new(WadStack::new());
 
         let mut stack = WadStack::new();
         stack.add(boxed);
         stack.add(arced);
     }
+
+    // Make sure WadStack is Send and Sync.
+    trait IsSendAndSync: Send + Sync {}
+    impl IsSendAndSync for WadStack {}
 
     fn test_path(path: impl AsRef<Path>) -> PathBuf {
         Path::new("test").join(path)
