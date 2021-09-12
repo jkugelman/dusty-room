@@ -7,6 +7,7 @@ use crate::{Lump, Wad, WadFile, WadType};
 /// are PWADs, but that's not a strict requirement. Other combinations are
 /// allowed.
 #[derive(Clone)]
+#[must_use]
 pub struct WadStack {
     wads: Vec<Arc<dyn Wad + Send + Sync>>,
 }
@@ -21,9 +22,7 @@ impl WadStack {
         let wad = WadFile::open(file)?;
 
         match wad.wad_type() {
-            WadType::Iwad => Ok(Self {
-                wads: vec![Arc::new(wad)],
-            }),
+            WadType::Iwad => Ok(Self::unchecked(wad)),
             WadType::Pwad => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("{} not an IWAD", file.display()),
@@ -31,25 +30,16 @@ impl WadStack {
         }
     }
 
-    /// Adds a PWAD that overlays files earlier in the stack.
-    pub fn pwad(mut self, file: impl AsRef<Path>) -> io::Result<Self> {
-        self.add_pwad(file)?;
-        Ok(self)
+    /// Returns a new stack with a PWAD overlaid.
+    pub fn pwad(&self, file: impl AsRef<Path>) -> io::Result<Self> {
+        self.pwad_impl(file.as_ref())
     }
 
-    /// Adds a PWAD that overlays files earlier in the stack.
-    pub fn add_pwad(&mut self, file: impl AsRef<Path>) -> io::Result<()> {
-        self.add_pwad_impl(file.as_ref())
-    }
-
-    fn add_pwad_impl(&mut self, file: &Path) -> io::Result<()> {
+    fn pwad_impl(&self, file: &Path) -> io::Result<Self> {
         let wad = WadFile::open(file)?;
 
         match wad.wad_type() {
-            WadType::Pwad => {
-                self.wads.push(Arc::new(wad));
-                Ok(())
-            }
+            WadType::Pwad => Ok(self.and_unchecked(wad)),
             WadType::Iwad => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("{} not a PWAD", file.display()),
@@ -57,16 +47,24 @@ impl WadStack {
         }
     }
 
-    /// Creates an empty stack. Use this if you want to bypass IWAD/PWAD type
-    /// checking.
-    pub fn new() -> Self {
+    /// Creates a stack without a starting IWAD. Use this if you want to bypass
+    /// IWAD/PWAD type checking.
+    pub fn empty_unchecked() -> Self {
         Self { wads: Vec::new() }
     }
 
-    /// Adds a generic [`Wad`] to the stack. Use this if you want to bypass
-    /// IWAD/PWAD type checking.
-    pub fn add(&mut self, wad: impl Wad + Send + Sync + 'static) {
-        self.wads.push(Arc::new(wad));
+    /// Creates a stack starting with a generic [`Wad`], which need not be an IWAD.
+    /// Use this if you want to bypass IWAD/PWAD type checking.
+    pub fn unchecked(wad: impl Wad + Send + Sync + 'static) -> Self {
+        Self::empty_unchecked().and_unchecked(wad)
+    }
+
+    /// Returns a new stack with a generic [`Wad`] overlaid, which need not be a
+    /// PWAD. Use this if you want to bypass IWAD/PWAD type checking.
+    pub fn and_unchecked(&self, wad: impl Wad + Send + Sync + 'static) -> Self {
+        let mut clone = self.clone();
+        clone.wads.push(Arc::new(wad));
+        clone
     }
 }
 
@@ -123,32 +121,31 @@ impl Wad for WadStack {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use super::*;
+    use crate::test::*;
 
     #[test]
     fn iwad_then_pwads() {
         // IWAD + PWAD = success.
-        WadStack::iwad(test_path("doom.wad"))
+        let _ = WadStack::iwad(DOOM_WAD_PATH)
             .unwrap()
-            .pwad(test_path("killer.wad"))
+            .pwad(KILLER_WAD_PATH)
             .unwrap();
 
         // IWAD + IWAD = error.
-        let mut wad = WadStack::iwad(test_path("doom.wad")).unwrap();
-        assert!(wad.add_pwad(test_path("doom2.wad")).is_err());
+        let wad = WadStack::iwad(DOOM_WAD_PATH).unwrap();
+        assert!(wad.pwad(DOOM2_WAD_PATH).is_err());
 
         // Can't start with a PWAD.
-        assert!(WadStack::iwad(test_path("killer.wad")).is_err());
+        assert!(WadStack::iwad(KILLER_WAD_PATH).is_err());
     }
 
     #[test]
     fn layering() {
-        let mut wad = WadStack::iwad(test_path("doom2.wad")).unwrap();
-        assert_eq!(wad.lump("DEMO3").unwrap().size(), 17898);
+        assert_eq!(DOOM2_WAD.lump("DEMO3").unwrap().size(), 17898);
         assert_eq!(
-            wad.lumps_after("MAP01", 10)
+            DOOM2_WAD
+                .lumps_after("MAP01", 10)
                 .unwrap()
                 .iter()
                 .map(|lump| (lump.name.as_str(), lump.size()))
@@ -166,9 +163,12 @@ mod tests {
                 ("BLOCKMAP", 6418),
             ],
         );
-        assert_eq!(wad.lumps_between("S_START", "S_END").unwrap().len(), 1381);
+        assert_eq!(
+            DOOM2_WAD.lumps_between("S_START", "S_END").unwrap().len(),
+            1381
+        );
 
-        wad.add_pwad(test_path("biotech.wad")).unwrap();
+        let wad = DOOM2_WAD.and_unchecked(&*BIOTECH_WAD);
         assert_eq!(wad.lump("DEMO3").unwrap().size(), 9490);
         assert_eq!(
             wad.lumps_after("MAP01", 10)
@@ -195,40 +195,33 @@ mod tests {
 
     #[test]
     fn no_type_checking() {
-        let mut super_wad = WadStack::new();
-
         // Nonsensical ordering.
-        super_wad.add(WadFile::open(test_path("killer.wad")).unwrap());
-        super_wad.add(WadFile::open(test_path("doom2.wad")).unwrap());
-        super_wad.add(WadFile::open(test_path("doom.wad")).unwrap());
-        super_wad.add(WadFile::open(test_path("biotech.wad")).unwrap());
+        let silly_wad = WadStack::empty_unchecked()
+            .and_unchecked(&*KILLER_WAD)
+            .and_unchecked(&*DOOM2_WAD)
+            .and_unchecked(&*DOOM_WAD)
+            .and_unchecked(&*BIOTECH_WAD);
 
-        assert!(super_wad.lump("E1M1").is_some());
-        assert!(super_wad.lump("MAP01").is_some());
+        assert!(silly_wad.lump("E1M1").is_some());
+        assert!(silly_wad.lump("MAP01").is_some());
     }
 
     // Doesn't need to run, just compile.
     fn _can_add_static_refs() {
-        let wad: &'static _ = Box::leak(Box::new(WadStack::new()));
-        let mut stack = WadStack::new();
-        stack.add(wad);
+        let wad: &'static _ = Box::leak(Box::new(WadStack::empty_unchecked()));
+        let _ = WadStack::unchecked(wad);
     }
 
     // Doesn't need to run, just compile.
     fn _can_add_trait_objects() {
-        let boxed: Box<dyn Wad + Send + Sync> = Box::new(WadStack::new());
-        let arced: Arc<dyn Wad + Send + Sync> = Arc::new(WadStack::new());
+        let boxed: Box<dyn Wad + Send + Sync> = Box::new(WadStack::empty_unchecked());
+        let arced: Arc<dyn Wad + Send + Sync> = Arc::new(WadStack::empty_unchecked());
 
-        let mut stack = WadStack::new();
-        stack.add(boxed);
-        stack.add(arced);
+        let _ = WadStack::unchecked(boxed);
+        let _ = WadStack::unchecked(arced);
     }
 
     // Make sure WadStack is Send and Sync.
     trait IsSendAndSync: Send + Sync {}
     impl IsSendAndSync for WadStack {}
-
-    fn test_path(path: impl AsRef<Path>) -> PathBuf {
-        Path::new("test").join(path)
-    }
 }

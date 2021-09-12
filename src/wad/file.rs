@@ -206,41 +206,34 @@ fn build_indices(locations: &[LumpLocation]) -> HashMap<String, LumpIndex> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test::*;
 
     #[test]
     fn header() {
-        let wad = test_wad("doom.wad");
-        assert_eq!(wad.wad_type, WadType::Iwad);
-        assert_eq!(wad.lumps.len(), 1264);
+        assert_eq!(DOOM_WAD_FILE.wad_type, WadType::Iwad);
+        assert_eq!(DOOM_WAD_FILE.lumps.len(), 1264);
 
-        let wad = test_wad("killer.wad");
-        assert_eq!(wad.wad_type, WadType::Pwad);
-        assert_eq!(wad.lumps.len(), 55);
+        assert_eq!(KILLER_WAD_FILE.wad_type, WadType::Pwad);
+        assert_eq!(KILLER_WAD_FILE.lumps.len(), 55);
     }
 
     #[test]
     fn read_lumps() {
-        let wad = test_wad("doom.wad");
-
-        assert_eq!(wad.lump("DEMO1").unwrap().size(), 20118);
-        assert_eq!(wad.lump("E1M1").unwrap().size(), 0);
+        assert_eq!(DOOM_WAD_FILE.lump("DEMO1").unwrap().size(), 20118);
+        assert_eq!(DOOM_WAD_FILE.lump("E1M1").unwrap().size(), 0);
     }
 
     #[test]
     fn detect_duplicates() {
-        let wad = test_wad("doom.wad");
-
-        assert!(wad.lump_index("E1M1").is_some());
-        assert!(wad.lump_index("THINGS").is_none());
-        assert!(wad.lump_index("VERTEXES").is_none());
-        assert!(wad.lump_index("SECTORS").is_none());
+        assert!(DOOM_WAD_FILE.lump_index("E1M1").is_some());
+        assert!(DOOM_WAD_FILE.lump_index("THINGS").is_none());
+        assert!(DOOM_WAD_FILE.lump_index("VERTEXES").is_none());
+        assert!(DOOM_WAD_FILE.lump_index("SECTORS").is_none());
     }
 
     #[test]
     fn lumps_after() {
-        let wad = test_wad("doom.wad");
-
-        let map = wad.lumps_after("E1M8", 10).unwrap();
+        let map = DOOM_WAD_FILE.lumps_after("E1M8", 10).unwrap();
         assert_eq!(map.len(), 10);
         assert_eq!(
             map.iter().map(|l| &l.name).collect::<Vec<_>>(),
@@ -253,26 +246,20 @@ mod test {
 
     #[test]
     fn lumps_between() {
-        let wad = test_wad("doom.wad");
-
-        let sprites = wad.lumps_between("S_START", "S_END").unwrap();
+        let sprites = DOOM_WAD_FILE.lumps_between("S_START", "S_END").unwrap();
         assert_ne!(sprites.first().unwrap().name, "S_START");
         assert_ne!(sprites.last().unwrap().name, "S_END");
         assert_eq!(sprites.len(), 483);
         assert_eq!(sprites[100].name, "SARGB5");
 
-        assert!(wad.lumps_between("S_END", "S_START").is_none());
+        assert!(DOOM_WAD_FILE.lumps_between("S_END", "S_START").is_none());
     }
 
     #[test]
     fn lumps_after_bounds() {
-        let wad = test_wad("doom.wad");
+        let wad = &DOOM_WAD_FILE;
 
         assert!(wad.lumps_after("E1M1", 0).is_some());
         assert!(wad.lumps_after("E1M1", 9999).is_none());
-    }
-
-    fn test_wad(path: impl AsRef<Path>) -> WadFile {
-        WadFile::open(Path::new("test").join(path)).unwrap()
     }
 }
