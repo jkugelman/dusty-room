@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::Lump;
 #[allow(unused_imports)]
 use crate::{WadFile, WadStack};
 
@@ -16,17 +17,6 @@ pub trait Wad {
     /// Retrieves a block of lumps between start and end markers. The marker lumps
     /// are not included in the result.
     fn lumps_between(&self, start: &str, end: &str) -> Option<&[Lump]>;
-}
-
-pub struct Lump {
-    pub name: String,
-    pub data: Vec<u8>,
-}
-
-impl Lump {
-    pub fn size(&self) -> usize {
-        self.data.len()
-    }
 }
 
 /// Allows `&`[`WadFile`] references to be added to a [`WadStack`] so the stack
