@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Display};
 
 #[allow(unused_imports)]
 use crate::Wad;
@@ -17,6 +17,12 @@ impl Lump {
 
 impl fmt::Debug for Lump {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Lump").field("name", &self.name).finish()
+        write!(f, "{:?} ({} bytes)", self.name, self.size())
+    }
+}
+
+impl Display for Lump {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name)
     }
 }

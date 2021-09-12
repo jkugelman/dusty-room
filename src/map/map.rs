@@ -7,11 +7,7 @@ pub struct Map {
 }
 
 impl Map {
-    pub fn load(wad: impl Wad, name: &str) -> Result<Self, MapError> {
-        Self::load_impl(&wad, name)
-    }
-
-    fn load_impl(wad: &dyn Wad, name: &str) -> Result<Self, MapError> {
+    pub fn load(wad: &Wad, name: &str) -> Result<Self, MapError> {
         let _lumps = wad
             .lumps_after(name, 10)
             .ok_or_else(|| MapError::LumpMissing(name.to_string()))?;

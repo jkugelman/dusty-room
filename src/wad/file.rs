@@ -2,13 +2,13 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use std::{
     collections::HashMap,
     convert::TryInto,
-    fmt,
+    fmt::{self, Display},
     fs::File,
     io::{self, BufReader, Read, Seek, SeekFrom},
     path::{Path, PathBuf},
 };
 
-use crate::{Lump, Wad};
+use crate::Lump;
 
 /// A single IWAD or PWAD file.
 pub struct WadFile {
@@ -61,6 +61,27 @@ impl WadFile {
         self.wad_type
     }
 
+    /// Retrieves a unique lump by name.
+    pub fn lump(&self, name: &str) -> Option<&Lump> {
+        self.lump_index(name).map(|i| &self.lumps[i])
+    }
+
+    /// Retrieves a block of `size` lumps following a named marker. The marker lump
+    /// is included in the result.
+    pub fn lumps_after(&self, start: &str, size: usize) -> Option<&[Lump]> {
+        let start_index = self.lump_index(start)?;
+        self.lumps.get(start_index..start_index + size)
+    }
+
+    /// Retrieves a block of `size` lumps starting with a unique named marker. The
+    /// marker lump is included in the result.
+    pub fn lumps_between(&self, start: &str, end: &str) -> Option<&[Lump]> {
+        let start_index = self.lump_index(start)?;
+        let end_index = self.lump_index(end)?;
+
+        self.lumps.get(start_index..end_index + 1)
+    }
+
     fn lump_index(&self, name: &str) -> Option<usize> {
         self.lump_indices.get(name).and_then(|&index| match index {
             LumpIndex::Unique(index) => Some(index),
@@ -69,52 +90,15 @@ impl WadFile {
     }
 }
 
-impl Wad for WadFile {
-    /// Retrieves a named lump. The name must be unique.
-    fn lump(&self, name: &str) -> Option<&Lump> {
-        self.lump_index(name).map(|i| &self.lumps[i])
-    }
-
-    /// Retrieves a block of `size` lumps following a named marker. The marker lump
-    /// is not included in the result.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use kdoom::WadFile;
-    ///
-    /// let wad = WadFile::open("doom.wad")?;
-    /// let map = wad.lumps_after("E1M5", 11);
-    /// # Ok::<(), std::io::Error>(())
-    /// ```
-    fn lumps_after(&self, start: &str, size: usize) -> Option<&[Lump]> {
-        let start_index = self.lump_index(start)?;
-        self.lumps.get(start_index..start_index + size)
-    }
-
-    /// Retrieves a block of lumps between start and end markers. The marker lumps
-    /// are not included in the result.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use kdoom::WadFile;
-    ///
-    /// let wad = WadFile::open("doom.wad")?;
-    /// let sprites = wad.lumps_between("S_START", "S_END");
-    /// # Ok::<(), std::io::Error>(())
-    /// ```
-    fn lumps_between(&self, start: &str, end: &str) -> Option<&[Lump]> {
-        let start_index = self.lump_index(start)?;
-        let end_index = self.lump_index(end)?;
-
-        self.lumps.get(start_index..end_index + 1)
+impl fmt::Debug for WadFile {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.path)
     }
 }
 
-impl fmt::Debug for WadFile {
+impl Display for WadFile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", &self.path)
+        write!(f, "{}", self.path.display())
     }
 }
 
