@@ -14,7 +14,10 @@ pub struct WadStack {
 impl WadStack {
     /// Creates a stack starting with a IWAD such as `doom.wad`.
     pub fn iwad(file: impl AsRef<Path>) -> io::Result<Self> {
-        let file = file.as_ref();
+        Self::iwad_impl(file.as_ref())
+    }
+
+    fn iwad_impl(file: &Path) -> io::Result<Self> {
         let wad = WadFile::open(file)?;
 
         match wad.wad_type() {
@@ -36,7 +39,10 @@ impl WadStack {
 
     /// Adds a PWAD that overlays files earlier in the stack.
     pub fn add_pwad(&mut self, file: impl AsRef<Path>) -> io::Result<()> {
-        let file = file.as_ref();
+        self.add_pwad_impl(file.as_ref())
+    }
+
+    fn add_pwad_impl(&mut self, file: &Path) -> io::Result<()> {
         let wad = WadFile::open(file)?;
 
         match wad.wad_type() {

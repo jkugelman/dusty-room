@@ -32,7 +32,10 @@ enum LumpIndex {
 impl WadFile {
     /// Reads a WAD file from disk.
     pub fn open(path: impl AsRef<Path>) -> io::Result<Self> {
-        let path = path.as_ref();
+        Self::open_impl(path.as_ref())
+    }
+
+    fn open_impl(path: &Path) -> io::Result<Self> {
         let file = File::open(path)?;
         let mut file = BufReader::new(file);
 
