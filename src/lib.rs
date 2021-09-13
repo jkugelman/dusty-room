@@ -1,8 +1,5 @@
-mod map;
-mod wad;
-
-pub use map::*;
-pub use wad::*;
+pub mod map;
+pub mod wad;
 
 #[cfg(test)]
 #[macro_use]

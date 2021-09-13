@@ -1,37 +1,43 @@
 use std::fmt;
 
-use crate::{MapError, Wad};
+use crate::map;
+use crate::wad::Wad;
 
 pub struct Map {
     name: String,
 }
 
 impl Map {
-    pub fn load(wad: &Wad, name: &str) -> Result<Self, MapError> {
-        let _lumps = wad
-            .lumps_after(name, 10)
-            .ok_or_else(|| MapError::LumpMissing(name.to_string()))?;
+    pub fn load(wad: &Wad, name: &str) -> map::Result<Self> {
+        let _lumps = wad.lumps_following(name, 11)?;
 
-        Ok(Self {
-            name: name.to_string(),
-        })
+        Ok(Self { name: name.into() })
     }
 }
 
 impl fmt::Debug for Map {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Map").field("name", &self.name).finish()
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(fmt, "{:?}", self.name)
+    }
+}
+
+impl fmt::Display for Map {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(fmt, "{}", self.name)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{test::*, MapError};
+    use crate::{map, test::*};
 
     #[test]
     fn load() {
         assert_matches!(Map::load(&*DOOM_WAD, "E1M1"), Ok(_));
-        assert_matches!(Map::load(&*DOOM_WAD, "E9M9"), Err(MapError::LumpMissing(name)) if &name == "E9M9");
+        assert_matches!(
+            Map::load(&*DOOM_WAD, "E9M9"),
+            Err(map::Error::WadError { .. })
+        );
     }
 }

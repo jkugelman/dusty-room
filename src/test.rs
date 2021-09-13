@@ -2,7 +2,7 @@
 //! loading the same files over and over.
 use std::sync::Arc;
 
-use crate::{Wad, WadFile};
+use crate::wad::{Wad, WadFile};
 
 pub static DOOM_WAD_PATH: &str = "test/doom.wad";
 pub static DOOM2_WAD_PATH: &str = "test/doom2.wad";

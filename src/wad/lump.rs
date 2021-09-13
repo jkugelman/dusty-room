@@ -1,9 +1,8 @@
-use std::fmt::{self, Display};
-
-#[allow(unused_imports)]
-use crate::Wad;
+use std::fmt;
 
 /// A named lump of data from a [`Wad`] file.
+///
+/// [`Wad`]: crate::Wad
 pub struct Lump {
     pub name: String,
     pub data: Vec<u8>,
@@ -16,13 +15,13 @@ impl Lump {
 }
 
 impl fmt::Debug for Lump {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?} ({} bytes)", self.name, self.size())
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(fmt, "{:?} ({} bytes)", self.name, self.size())
     }
 }
 
-impl Display for Lump {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.name)
+impl fmt::Display for Lump {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(fmt, "{}", self.name)
     }
 }

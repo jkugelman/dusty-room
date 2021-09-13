@@ -1,6 +1,6 @@
-use std::{io, path::Path, sync::Arc};
+use std::{path::Path, sync::Arc};
 
-use crate::{Lump, WadFile, WadType};
+use crate::wad::{self, Lump, WadFile, WadType};
 
 /// A stack of WAD files layered on top of each other, with later files
 /// overlaying earlier ones.
@@ -14,102 +14,120 @@ use crate::{Lump, WadFile, WadType};
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct Wad {
-    files: Vec<Arc<WadFile>>,
+    initial: Arc<WadFile>,
+    patches: Vec<Arc<WadFile>>,
 }
 
 impl Wad {
     /// Opens an IWAD such as `doom.wad`.
-    pub fn iwad(path: impl AsRef<Path>) -> io::Result<Self> {
+    pub fn iwad(path: impl AsRef<Path>) -> wad::Result<Self> {
         Self::initial(Arc::new(WadFile::open(path.as_ref())?))
     }
 
     /// Overlays a PWAD.
-    pub fn pwad(&self, path: impl AsRef<Path>) -> io::Result<Self> {
+    pub fn pwad(&self, path: impl AsRef<Path>) -> wad::Result<Self> {
         self.patch(Arc::new(WadFile::open(path.as_ref())?))
-    }
-
-    /// Creates a `Wad` without a starting IWAD. Use this if you want to bypass
-    /// IWAD/PWAD type checking.
-    pub fn empty_unchecked() -> Self {
-        Self { files: Vec::new() }
     }
 
     /// Creates a `Wad` starting with an already opened [`WadFile`], which must be
     /// an IWAD.
-    pub fn initial(file: Arc<WadFile>) -> io::Result<Self> {
-        match file.wad_type() {
-            WadType::Iwad => Ok(Self::initial_unchecked(file)),
-            WadType::Pwad => Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("{} not an IWAD", file),
-            )),
-        }
+    pub fn initial(file: Arc<WadFile>) -> wad::Result<Self> {
+        let file = file.expect(WadType::Iwad)?;
+        Ok(Self::initial_unchecked(file))
     }
 
     /// Creates a `Wad` starting with an already opened [`WadFile`], which need not
     /// be an IWAD. Use this if you want to bypass IWAD/PWAD type checking.
     pub fn initial_unchecked(file: Arc<WadFile>) -> Self {
-        Self::empty_unchecked().patch_unchecked(file)
+        Self {
+            initial: file,
+            patches: Vec::new(),
+        }
     }
 
     /// Overlays an already opened [`WadFile`], which must be a PWAD.
-    pub fn patch(&self, file: Arc<WadFile>) -> io::Result<Self> {
-        match file.wad_type() {
-            WadType::Pwad => Ok(self.patch_unchecked(file)),
-            WadType::Iwad => Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("{} not a PWAD", file),
-            )),
-        }
+    pub fn patch(&self, file: Arc<WadFile>) -> wad::Result<Self> {
+        let file = file.expect(WadType::Pwad)?;
+        Ok(self.patch_unchecked(file))
     }
 
     /// Overlays an already opened [`WadFile`], which need not be a PWAD. Use this
     /// if you want to bypass IWAD/PWAD type checking.
     pub fn patch_unchecked(&self, file: Arc<WadFile>) -> Self {
         let mut clone = self.clone();
-        clone.files.push(file);
+        clone.patches.push(file);
         clone
     }
 
     /// Retrieves a unique lump by name.
     ///
     /// Lumps in later files override lumps from earlier ones.
-    pub fn lump(&self, name: &str) -> Option<&Lump> {
-        self.files.iter().rev().find_map(|file| file.lump(name))
+    ///
+    /// It is an error if the lump is missing.
+    pub fn lump(&self, name: &str) -> wad::Result<&Lump> {
+        for patch in self.patches.iter().rev() {
+            if let Some(lump) = patch.try_lump(name)? {
+                return Ok(lump);
+            }
+        }
+
+        self.initial.lump(name)
     }
 
-    /// Retrieves a block of `size` lumps starting with a unique named marker. The
+    /// Retrieves a block of `size` lumps following a unique named marker. The
     /// marker lump is included in the result.
     ///
     /// Blocks in later files override entire blocks from earlier files.
-    pub fn lumps_after(&self, start: &str, size: usize) -> Option<&[Lump]> {
-        self.files
-            .iter()
-            .rev()
-            .find_map(|file| file.lumps_after(start, size))
+    ///
+    /// It is an error if the block is missing.
+    pub fn lumps_following(&self, start: &str, size: usize) -> wad::Result<&[Lump]> {
+        for patch in self.patches.iter().rev() {
+            if let Some(lumps) = patch.try_lumps_following(start, size)? {
+                return Ok(lumps);
+            }
+        }
+
+        self.initial.lumps_following(start, size)
     }
 
     /// Retrieves a block of lumps between start and end markers. The marker lumps
     /// are included in the result.
     ///
     /// Blocks in later wads override entire blocks from earlier files.
-    pub fn lumps_between(&self, start: &str, end: &str) -> Option<&[Lump]> {
-        self.files
-            .iter()
-            .rev()
-            .find_map(|file| file.lumps_between(start, end))
+    ///
+    /// It is an error if the block is missing.
+    pub fn lumps_between(&self, start: &str, end: &str) -> wad::Result<&[Lump]> {
+        for patch in self.patches.iter().rev() {
+            if let Some(lumps) = patch.try_lumps_between(start, end)? {
+                return Ok(lumps);
+            }
+        }
+
+        self.initial.lumps_between(start, end)
     }
 }
 
-impl PartialEq for Wad {
-    fn eq(&self, other: &Self) -> bool {
-        let self_ptrs = self.files.iter().map(Arc::as_ptr);
-        let other_ptrs = other.files.iter().map(Arc::as_ptr);
-        self_ptrs.eq(other_ptrs)
-    }
+/// Adds an extension method to check that a [`WadFile`] is the correct type.
+trait ExpectWadType
+where
+    Self: Sized,
+{
+    fn expect(self, expected: WadType) -> wad::Result<Self>;
 }
 
-impl Eq for Wad {}
+impl ExpectWadType for Arc<WadFile> {
+    /// Checks that a [`WadFile`] is the correct type.
+    fn expect(self, expected: WadType) -> wad::Result<Self> {
+        if self.wad_type() == expected {
+            Ok(self)
+        } else {
+            Err(wad::Error::WrongType {
+                path: self.path().into(),
+                expected,
+            })
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -137,7 +155,7 @@ mod tests {
         assert_eq!(DOOM2_WAD.lump("DEMO3").unwrap().size(), 17898);
         assert_eq!(
             DOOM2_WAD
-                .lumps_after("MAP01", 11)
+                .lumps_following("MAP01", 11)
                 .unwrap()
                 .iter()
                 .map(|lump| (lump.name.as_str(), lump.size()))
@@ -164,7 +182,7 @@ mod tests {
         let wad = DOOM2_WAD.patch_unchecked(BIOTECH_WAD_FILE.clone());
         assert_eq!(wad.lump("DEMO3").unwrap().size(), 9490);
         assert_eq!(
-            wad.lumps_after("MAP01", 11)
+            wad.lumps_following("MAP01", 11)
                 .unwrap()
                 .iter()
                 .map(|lump| (lump.name.as_str(), lump.size()))
@@ -190,14 +208,13 @@ mod tests {
     #[test]
     fn no_type_checking() {
         // Nonsensical ordering.
-        let silly_wad = Wad::empty_unchecked()
-            .patch_unchecked(KILLER_WAD_FILE.clone())
+        let silly_wad = Wad::initial_unchecked(KILLER_WAD_FILE.clone())
             .patch_unchecked(DOOM2_WAD_FILE.clone())
             .patch_unchecked(DOOM_WAD_FILE.clone())
             .patch_unchecked(BIOTECH_WAD_FILE.clone());
 
-        assert_matches!(silly_wad.lump("E1M1"), Some(_));
-        assert_matches!(silly_wad.lump("MAP01"), Some(_));
+        assert_matches!(silly_wad.lump("E1M1"), Ok(_));
+        assert_matches!(silly_wad.lump("MAP01"), Ok(_));
     }
 
     // Make sure Wad is Send and Sync.
