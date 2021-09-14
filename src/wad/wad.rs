@@ -63,13 +63,16 @@ impl Wad {
     ///
     /// It is an error if the lump is missing.
     pub fn lump(&self, name: &str) -> wad::Result<&Lump> {
-        for patch in self.patches.iter().rev() {
-            if let Some(lump) = patch.try_lump(name)? {
-                return Ok(lump);
-            }
-        }
+        self.lookup(|patch| patch.try_lump(name), |initial| initial.lump(name))
+    }
 
-        self.initial.lump(name)
+    /// Retrieves a unique lump by name.
+    ///
+    /// Lumps in later files override lumps from earlier ones.
+    ///
+    /// Returns `Ok(None)` if the lump is missing.
+    pub fn try_lump(&self, name: &str) -> wad::Result<Option<&Lump>> {
+        self.try_lookup(|file| file.try_lump(name))
     }
 
     /// Retrieves a block of `size` lumps following a unique named marker. The marker lump is
@@ -79,13 +82,20 @@ impl Wad {
     ///
     /// It is an error if the block is missing.
     pub fn lumps_following(&self, start: &str, size: usize) -> wad::Result<&[Lump]> {
-        for patch in self.patches.iter().rev() {
-            if let Some(lumps) = patch.try_lumps_following(start, size)? {
-                return Ok(lumps);
-            }
-        }
+        self.lookup(
+            |patch| patch.try_lumps_following(start, size),
+            |initial| initial.lumps_following(start, size),
+        )
+    }
 
-        self.initial.lumps_following(start, size)
+    /// Retrieves a block of `size` lumps following a unique named marker. The marker lump is
+    /// included in the result.
+    ///
+    /// Blocks in later files override entire blocks from earlier files.
+    ///
+    /// Returns `Ok(None)` if the block is missing.
+    pub fn try_lumps_following(&self, start: &str, size: usize) -> wad::Result<Option<&[Lump]>> {
+        self.try_lookup(|file| file.try_lumps_following(start, size))
     }
 
     /// Retrieves a block of lumps between start and end markers. The marker lumps are included in
@@ -95,13 +105,47 @@ impl Wad {
     ///
     /// It is an error if the block is missing.
     pub fn lumps_between(&self, start: &str, end: &str) -> wad::Result<&[Lump]> {
+        self.lookup(
+            |patch| patch.try_lumps_between(start, end),
+            |initial| initial.lumps_between(start, end),
+        )
+    }
+
+    /// Retrieves a block of lumps between start and end markers. The marker lumps are included in
+    /// the result.
+    ///
+    /// Blocks in later wads override entire blocks from earlier files.
+    ///
+    /// Returns `Ok(None)` if the block is missing.
+    pub fn try_lumps_between(&self, start: &str, end: &str) -> wad::Result<Option<&[Lump]>> {
+        self.try_lookup(|file| file.try_lumps_between(start, end))
+    }
+
+    fn lookup<'wad, T>(
+        &'wad self,
+        try_lookup: impl Fn(&'wad WadFile) -> wad::Result<Option<T>>,
+        lookup: impl FnOnce(&'wad WadFile) -> wad::Result<T>,
+    ) -> wad::Result<T> {
         for patch in self.patches.iter().rev() {
-            if let Some(lumps) = patch.try_lumps_between(start, end)? {
-                return Ok(lumps);
+            if let Some(value) = try_lookup(patch)? {
+                return Ok(value);
             }
         }
 
-        self.initial.lumps_between(start, end)
+        lookup(&self.initial)
+    }
+
+    fn try_lookup<'wad, T>(
+        &'wad self,
+        try_lookup: impl Fn(&'wad WadFile) -> wad::Result<Option<T>>,
+    ) -> wad::Result<Option<T>> {
+        for patch in self.patches.iter().rev() {
+            if let Some(value) = try_lookup(patch)? {
+                return Ok(Some(value));
+            }
+        }
+
+        try_lookup(&self.initial)
     }
 }
 

@@ -188,7 +188,7 @@ impl WadFile {
 
     /// Retrieves a unique lump by name.
     ///
-    /// It is not an error if the lump is missing.
+    /// Returns `Ok(None)` if the lump is missing.
     pub fn try_lump(&self, name: &str) -> wad::Result<Option<&Lump>> {
         let index = self.try_lump_index(name)?;
         if index.is_none() {
@@ -211,7 +211,7 @@ impl WadFile {
     /// Retrieves a block of `size` lumps following a unique named marker. The marker lump is
     /// included in the result.
     ///
-    /// It is not an error if the block is missing.
+    /// Returns `Ok(None)` if the block is missing.
     pub fn try_lumps_following(&self, start: &str, size: usize) -> wad::Result<Option<&[Lump]>> {
         let start_index = self.try_lump_index(start)?;
         if start_index.is_none() {
@@ -242,7 +242,7 @@ impl WadFile {
     /// Retrieves a block of lumps between unique start and end markers. The marker lumps are
     /// included in the result.
     ///
-    /// It is not an error if the block is missing.
+    /// Returns `Ok(None)` if the block is missing.
     pub fn try_lumps_between(&self, start: &str, end: &str) -> wad::Result<Option<&[Lump]>> {
         let start_index = self.try_lump_index(start)?;
         let end_index = self.try_lump_index(end)?;
