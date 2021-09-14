@@ -11,7 +11,7 @@ use crate::wad::{self, Lump, ResultExt};
 
 /// A single IWAD or PWAD file.
 ///
-/// This is a low level type. Most code should use [`Wad`]
+/// This is a low level type. Most code should use [`Wad`].
 ///
 /// [`Wad`]: crate::wad::Wad
 pub struct WadFile {
@@ -199,8 +199,8 @@ impl WadFile {
         Ok(Some(&self.lumps[index]))
     }
 
-    /// Retrieves a block of `size` lumps following a unique named marker. The
-    /// marker lump is included in the result.
+    /// Retrieves a block of `size` lumps following a unique named marker. The marker lump is
+    /// included in the result.
     ///
     /// It is an error if the block is missing.
     pub fn lumps_following(&self, start: &str, size: usize) -> wad::Result<&[Lump]> {
@@ -208,8 +208,8 @@ impl WadFile {
             .ok_or_else(|| wad::Error::malformed(&self.path, format!("{} missing", start)))
     }
 
-    /// Retrieves a block of `size` lumps following a unique named marker. The
-    /// marker lump is included in the result.
+    /// Retrieves a block of `size` lumps following a unique named marker. The marker lump is
+    /// included in the result.
     ///
     /// It is not an error if the block is missing.
     pub fn try_lumps_following(&self, start: &str, size: usize) -> wad::Result<Option<&[Lump]>> {
@@ -229,8 +229,8 @@ impl WadFile {
         Ok(Some(&self.lumps[start_index..start_index + size]))
     }
 
-    /// Retrieves a block of lumps between unique start and end markers. The marker
-    /// lumps are included in the result.
+    /// Retrieves a block of lumps between unique start and end markers. The marker lumps are
+    /// included in the result.
     ///
     /// It is an error if the block is missing.
     pub fn lumps_between(&self, start: &str, end: &str) -> wad::Result<&[Lump]> {
@@ -239,8 +239,8 @@ impl WadFile {
         })
     }
 
-    /// Retrieves a block of lumps between unique start and end markers. The marker
-    /// lumps are included in the result.
+    /// Retrieves a block of lumps between unique start and end markers. The marker lumps are
+    /// included in the result.
     ///
     /// It is not an error if the block is missing.
     pub fn try_lumps_between(&self, start: &str, end: &str) -> wad::Result<Option<&[Lump]>> {

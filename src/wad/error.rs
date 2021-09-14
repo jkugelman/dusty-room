@@ -31,8 +31,8 @@ impl Error {
     }
 }
 
-/// Import this trait to add an extension methods to convert a [`std::io::Result`]
-/// into a [`Result`].
+/// Import this trait to add an extension methods to convert a [`std::io::Result`] into a
+/// [`Result`].
 pub trait ResultExt<T> {
     fn err_path(self, path: impl AsRef<Path>) -> wad::Result<T>;
 }

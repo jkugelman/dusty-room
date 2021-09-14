@@ -2,12 +2,11 @@ use std::{path::Path, sync::Arc};
 
 use crate::wad::{self, Lump, WadFile, WadType};
 
-/// A stack of WAD files layered on top of each other, with later files
-/// overlaying earlier ones.
+/// A stack of WAD files layered on top of each other, with later files overlaying earlier ones.
 ///
-/// A `Wad` usually consists of an IWAD overlaid with zero or more PWADs, a
-/// convention which is enforced by the [`iwad`] and [`pwad`] builder methods.
-/// There are a set of unchecked methods if you want to ignore this convention.
+/// A `Wad` usually consists of an IWAD overlaid with zero or more PWADs, a convention which is
+/// enforced by the [`iwad`] and [`pwad`] builder methods. There are a set of unchecked methods if
+/// you want to ignore this convention.
 ///
 /// [`iwad`]: Wad::iwad
 /// [`pwad`]: Wad::pwad
@@ -29,15 +28,14 @@ impl Wad {
         self.patch(Arc::new(WadFile::open(path.as_ref())?))
     }
 
-    /// Creates a `Wad` starting with an already opened [`WadFile`], which must be
-    /// an IWAD.
+    /// Creates a `Wad` starting with an already opened [`WadFile`], which must be an IWAD.
     pub fn initial(file: Arc<WadFile>) -> wad::Result<Self> {
         let file = file.expect(WadType::Iwad)?;
         Ok(Self::initial_unchecked(file))
     }
 
-    /// Creates a `Wad` starting with an already opened [`WadFile`], which need not
-    /// be an IWAD. Use this if you want to bypass IWAD/PWAD type checking.
+    /// Creates a `Wad` starting with an already opened [`WadFile`], which need not be an IWAD. Use
+    /// this if you want to bypass IWAD/PWAD type checking.
     pub fn initial_unchecked(file: Arc<WadFile>) -> Self {
         Self {
             initial: file,
@@ -51,8 +49,8 @@ impl Wad {
         Ok(self.patch_unchecked(file))
     }
 
-    /// Overlays an already opened [`WadFile`], which need not be a PWAD. Use this
-    /// if you want to bypass IWAD/PWAD type checking.
+    /// Overlays an already opened [`WadFile`], which need not be a PWAD. Use this if you want to
+    /// bypass IWAD/PWAD type checking.
     pub fn patch_unchecked(&self, file: Arc<WadFile>) -> Self {
         let mut clone = self.clone();
         clone.patches.push(file);
@@ -74,8 +72,8 @@ impl Wad {
         self.initial.lump(name)
     }
 
-    /// Retrieves a block of `size` lumps following a unique named marker. The
-    /// marker lump is included in the result.
+    /// Retrieves a block of `size` lumps following a unique named marker. The marker lump is
+    /// included in the result.
     ///
     /// Blocks in later files override entire blocks from earlier files.
     ///
@@ -90,8 +88,8 @@ impl Wad {
         self.initial.lumps_following(start, size)
     }
 
-    /// Retrieves a block of lumps between start and end markers. The marker lumps
-    /// are included in the result.
+    /// Retrieves a block of lumps between start and end markers. The marker lumps are included in
+    /// the result.
     ///
     /// Blocks in later wads override entire blocks from earlier files.
     ///
@@ -217,7 +215,7 @@ mod tests {
         assert_matches!(silly_wad.lump("MAP01"), Ok(_));
     }
 
-    // Make sure Wad is Send and Sync.
+    // Make sure `Wad` is `Send` and `Sync`.
     trait IsSendAndSync: Send + Sync {}
     impl IsSendAndSync for Wad {}
 }

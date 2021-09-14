@@ -1,5 +1,5 @@
-//! Place test assets in a public crate-wide location so tests don't waste time
-//! loading the same files over and over.
+//! Place test assets in a public crate-wide location so tests don't waste time loading the same
+//! files over and over.
 use std::sync::Arc;
 
 use crate::wad::{Wad, WadFile};
