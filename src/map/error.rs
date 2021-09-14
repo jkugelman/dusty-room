@@ -5,7 +5,7 @@ use crate::wad;
 #[derive(Error, Debug)]
 pub enum Error {
     #[error(transparent)]
-    WadError {
+    Wad {
         #[from]
         source: wad::Error,
     },
