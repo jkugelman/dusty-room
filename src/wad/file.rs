@@ -105,21 +105,14 @@ impl WadFile {
         })
     }
 
-    fn read_wad_type(mut file: impl Read) -> io::Result<WadType> {
-        let mut buffer = [0u8; 4];
+    fn read_wad_type(file: impl Read) -> io::Result<WadType> {
+        let mut buffer = Vec::new();
+        file.take(4).read_to_end(&mut buffer)?;
 
-        match file.read_exact(&mut buffer) {
-            Ok(()) => match &buffer {
-                b"IWAD" => Ok(WadType::Iwad),
-                b"PWAD" => Ok(WadType::Pwad),
-                _ => Err(io::Error::new(io::ErrorKind::InvalidData, "not a WAD file")),
-            },
-
-            Err(err) if err.kind() == io::ErrorKind::UnexpectedEof => {
-                Err(io::Error::new(io::ErrorKind::InvalidData, "not a WAD file"))
-            }
-
-            Err(err) => Err(err),
+        match &buffer[..] {
+            b"IWAD" => Ok(WadType::Iwad),
+            b"PWAD" => Ok(WadType::Pwad),
+            _ => Err(io::Error::new(io::ErrorKind::InvalidData, "not a WAD file")),
         }
     }
 
@@ -328,6 +321,11 @@ mod test {
 
         assert_eq!(KILLER_WAD_FILE.wad_type, WadType::Pwad);
         assert_eq!(KILLER_WAD_FILE.lumps.len(), 55);
+
+        assert_matches!(
+            WadFile::open("test/killer.txt"),
+            Err(wad::Error::Io { source: err, ..}) if err.kind() == io::ErrorKind::InvalidData
+        );
     }
 
     #[test]
