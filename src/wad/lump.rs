@@ -4,11 +4,14 @@ use std::fmt;
 ///
 /// [`Wad`]: crate::Wad
 pub struct Lump {
+    /// The lump name, for example `"VERTEXES"` or `"THINGS"`.
     pub name: String,
+    /// The lump contents, a binary blob.
     pub data: Vec<u8>,
 }
 
 impl Lump {
+    /// The size of the lump. Equivalent to `lump.data.len()`.
     pub fn size(&self) -> usize {
         self.data.len()
     }

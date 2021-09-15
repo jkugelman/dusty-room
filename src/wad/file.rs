@@ -28,9 +28,12 @@ struct Header {
     pub directory_offset: u32,
 }
 
+/// WAD files can be either IWADs or PWADs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum WadType {
+    /// Initial WAD.
     Iwad,
+    /// Patch WAD.
     Pwad,
 }
 
