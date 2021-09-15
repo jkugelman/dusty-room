@@ -1,4 +1,5 @@
 mod error;
+
 pub use error::*;
 
 use std::fmt;
@@ -8,11 +9,11 @@ use crate::wad::{LumpRef, Wad};
 
 pub struct Map {
     name: String,
-    things: (),
-    vertices: (),
-    sides: (),
-    lines: (),
-    sectors: (),
+    _things: (),
+    _vertices: (),
+    _sides: (),
+    _lines: (),
+    _sectors: (),
 }
 
 impl Map {
@@ -35,11 +36,11 @@ impl Map {
 
         Ok(Some(Map {
             name,
-            things,
-            vertices,
-            sides,
-            lines,
-            sectors,
+            _things: things,
+            _vertices: vertices,
+            _sides: sides,
+            _lines: lines,
+            _sectors: sectors,
         }))
     }
 
