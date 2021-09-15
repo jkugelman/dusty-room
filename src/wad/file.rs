@@ -7,7 +7,7 @@ use std::{fmt, io};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
-use crate::wad::{self, ResultExt};
+use crate::wad::{self, Lump, ResultExt};
 
 /// A single IWAD or PWAD file stored in a [`Wad`] stack.
 ///
@@ -47,12 +47,6 @@ struct LumpLocation {
     pub offset: u32,
     pub size: u32,
     pub name: String,
-}
-
-#[derive(Debug)]
-pub(super) struct Lump {
-    pub name: String,
-    pub data: Vec<u8>,
 }
 
 impl fmt::Display for LumpLocation {
