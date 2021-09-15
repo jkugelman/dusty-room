@@ -1,6 +1,14 @@
+mod error;
+mod file;
+mod lump;
+
+pub use error::*;
+pub use file::*;
+pub use lump::*;
+
 use std::{path::Path, sync::Arc};
 
-use crate::wad::{self, FromFile, LumpRef, LumpRefs, WadFile, WadType};
+use crate::wad;
 
 /// A stack of WAD files layered on top of each other, with later files overlaying earlier ones.
 ///

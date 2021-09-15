@@ -1,3 +1,6 @@
+mod error;
+pub use error::*;
+
 use std::fmt;
 
 use crate::map;
