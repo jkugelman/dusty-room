@@ -306,7 +306,7 @@ impl WadFile {
     }
 
     /// Creates a [`wad::Error::Malformed`] blaming this file.
-    pub(super) fn error(&self, desc: &str) -> wad::Error {
+    pub fn error(&self, desc: &str) -> wad::Error {
         wad::Error::Malformed {
             path: self.path.clone(),
             desc: desc.into(),

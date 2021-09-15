@@ -1,5 +1,7 @@
 pub mod assets;
 
+pub use assets::Assets;
+
 #[cfg(test)]
 #[macro_use]
 extern crate assert_matches;

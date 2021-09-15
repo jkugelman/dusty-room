@@ -54,7 +54,7 @@ impl LumpRef<'_> {
     }
 
     /// Creates a [`wad::Error::Malformed`] blaming this lump.
-    pub(super) fn error(&self, desc: &str) -> wad::Error {
+    pub fn error(&self, desc: &str) -> wad::Error {
         self.file.error(&format!("{}: {}", self.name(), desc))
     }
 }
