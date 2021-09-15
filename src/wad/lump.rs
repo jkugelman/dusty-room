@@ -6,8 +6,7 @@ use crate::wad::{self, WadFile};
 
 /// A named lump of data from a [`WadFile`].
 ///
-/// This type is not publicly visible. They are stored within [`WadFile`]s and referenced by
-/// [`LumpRef`]s and that's it.
+/// This type is not publicly visible. [`Wad`]'s public interface hides `Lump`s behind [`LumpRef`]s.
 #[derive(Debug)]
 pub(super) struct Lump {
     pub name: String,
@@ -103,12 +102,12 @@ impl<'wad> LumpRefs<'wad> {
         self.lumps.first().expect("empty lump block").name()
     }
 
-    /// Checks that the lump at `index` has the expected name.
+    /// Gets the lump at `index` and checks that it has the expected name.
     ///
     /// # Panics
     ///
     /// Panics if the index is out of bounds.
-    pub fn get_named(&self, index: usize, name: &str) -> wad::Result<LumpRef<'wad>> {
+    pub fn get_with_name(&self, index: usize, name: &str) -> wad::Result<LumpRef<'wad>> {
         let lump = self[index];
 
         if lump.name == name {

@@ -27,11 +27,11 @@ impl Map {
         let lumps = lumps.unwrap();
 
         let name = name.to_string();
-        let things = Self::read_things(lumps.get_named(1, "THINGS")?);
-        let vertices = Self::read_vertices(lumps.get_named(4, "VERTEXES")?);
-        let sectors = Self::read_sectors(lumps.get_named(8, "SECTORS")?);
-        let sides = Self::read_sides(lumps.get_named(3, "SIDEDEFS")?);
-        let lines = Self::read_lines(lumps.get_named(2, "LINEDEFS")?);
+        let things = Self::read_things(lumps.get_with_name(1, "THINGS")?);
+        let vertices = Self::read_vertices(lumps.get_with_name(4, "VERTEXES")?);
+        let sectors = Self::read_sectors(lumps.get_with_name(8, "SECTORS")?);
+        let sides = Self::read_sides(lumps.get_with_name(3, "SIDEDEFS")?);
+        let lines = Self::read_lines(lumps.get_with_name(2, "LINEDEFS")?);
 
         Ok(Some(Map {
             name,
