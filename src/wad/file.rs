@@ -7,14 +7,12 @@ use std::{fmt, io};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
-use crate::wad::{self, Lump, ResultExt};
+use crate::wad::{self, ResultExt};
 
-/// A single IWAD or PWAD file.
-///
-/// This is a low level type. Most code should use [`Wad`].
+/// A single IWAD or PWAD file stored in a [`Wad`] stack.
 ///
 /// [`Wad`]: crate::wad::Wad
-pub struct WadFile {
+pub(super) struct WadFile {
     path: PathBuf,
     wad_type: WadType,
     lumps: Vec<Lump>,
@@ -31,9 +29,11 @@ struct Header {
 /// WAD files can be either IWADs or PWADs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum WadType {
-    /// Initial WAD.
+    /// An IWAD or "internal wad" such as `doom.wad` that contains all of the data necessary to
+    /// play.
     Iwad,
-    /// Patch WAD.
+    /// A PWAD or "patch wad" containing extra levels, textures, or other assets that are overlaid
+    /// on top of other wads.
     Pwad,
 }
 
@@ -47,6 +47,12 @@ struct LumpLocation {
     pub offset: u32,
     pub size: u32,
     pub name: String,
+}
+
+#[derive(Debug)]
+pub(super) struct Lump {
+    pub name: String,
+    pub data: Vec<u8>,
 }
 
 impl fmt::Display for LumpLocation {
@@ -314,64 +320,5 @@ impl fmt::Display for WadFile {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::test::*;
-
-    #[test]
-    fn header() {
-        assert_eq!(DOOM_WAD_FILE.wad_type, WadType::Iwad);
-        assert_eq!(DOOM_WAD_FILE.lumps.len(), 1264);
-
-        assert_eq!(KILLER_WAD_FILE.wad_type, WadType::Pwad);
-        assert_eq!(KILLER_WAD_FILE.lumps.len(), 55);
-
-        assert_matches!(
-            WadFile::open("test/killer.txt"),
-            Err(wad::Error::Io { source: err, ..}) if err.kind() == io::ErrorKind::InvalidData
-        );
-    }
-
-    #[test]
-    fn read_lumps() {
-        assert_eq!(DOOM_WAD_FILE.lump("DEMO1").unwrap().size(), 20118);
-        assert_eq!(DOOM_WAD_FILE.lump("E1M1").unwrap().size(), 0);
-    }
-
-    #[test]
-    fn detect_duplicates() {
-        assert_matches!(DOOM_WAD_FILE.lump("E1M1"), Ok(_));
-        assert_matches!(DOOM_WAD_FILE.lump("THINGS"), Err(_));
-        assert_matches!(DOOM_WAD_FILE.lump("VERTEXES"), Err(_));
-        assert_matches!(DOOM_WAD_FILE.lump("SECTORS"), Err(_));
-    }
-
-    #[test]
-    fn lumps_after() {
-        let map = DOOM_WAD_FILE.lumps_following("E1M8", 11).unwrap();
-        assert_eq!(map.len(), 11);
-        assert_eq!(
-            map.iter().map(|lump| &lump.name).collect::<Vec<_>>(),
-            [
-                "E1M8", "THINGS", "LINEDEFS", "SIDEDEFS", "VERTEXES", "SEGS", "SSECTORS", "NODES",
-                "SECTORS", "REJECT", "BLOCKMAP"
-            ],
-        );
-    }
-
-    #[test]
-    fn lumps_between() {
-        let sprites = DOOM_WAD_FILE.lumps_between("S_START", "S_END").unwrap();
-        assert_eq!(sprites.first().unwrap().name, "S_START");
-        assert_eq!(sprites.last().unwrap().name, "S_END");
-        assert_eq!(sprites.len(), 485);
-        assert_eq!(sprites[100].name, "SARGB4B6");
-
-        assert_matches!(DOOM_WAD_FILE.lumps_between("S_END", "S_START"), Err(_));
-    }
-
-    #[test]
-    fn lumps_after_bounds() {
-        assert_matches!(DOOM_WAD_FILE.try_lumps_following("E1M1", 0), Ok(Some(_)));
-        assert_matches!(DOOM_WAD_FILE.try_lumps_following("E1M1", 9999), Err(_));
-    }
+    //! This file is covered by tests in [`crate::wad::wad`].
 }

@@ -1,15 +1,16 @@
+use std::fmt;
 use std::{path::Path, sync::Arc};
 
 use crate::wad::{self, Lump, WadFile, WadType};
 
 /// A stack of WAD files layered on top of each other, with later files overlaying earlier ones.
 ///
-/// A `Wad` usually consists of an IWAD overlaid with zero or more PWADs, a convention which is
-/// enforced by the [`iwad`] and [`pwad`] builder methods. There are a set of unchecked methods if
-/// you want to ignore this convention.
+/// A `Wad` usually consists of an IWAD overlaid with zero or more PWADs, an ordering which is
+/// enforced by the [`open`] and [`patch`] builder methods. There are a set of unchecked methods if
+/// you want to bypass this constraint.
 ///
-/// [`iwad`]: Wad::iwad
-/// [`pwad`]: Wad::pwad
+/// [`open`]: Wad::open
+/// [`patch`]: Wad::patch
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct Wad {
@@ -18,42 +19,48 @@ pub struct Wad {
 }
 
 impl Wad {
-    /// Opens an IWAD such as `doom.wad`.
-    pub fn iwad(path: impl AsRef<Path>) -> wad::Result<Self> {
-        Self::initial(Arc::new(WadFile::open(path.as_ref())?))
+    /// Opens the initial [IWAD].
+    ///
+    /// [IWAD]: WadType::Iwad
+    pub fn open(path: impl AsRef<Path>) -> wad::Result<Self> {
+        let file = WadFile::open(path.as_ref())?.expect(WadType::Iwad)?;
+        Ok(Self::new(file))
     }
 
-    /// Overlays a PWAD.
-    pub fn pwad(&self, path: impl AsRef<Path>) -> wad::Result<Self> {
-        self.patch(Arc::new(WadFile::open(path.as_ref())?))
+    /// Opens the initial WAD without checking if it's an [IWAD].
+    ///
+    /// [IWAD]: WadType::Iwad
+    pub fn open_unchecked(path: impl AsRef<Path>) -> wad::Result<Self> {
+        let file = WadFile::open(path.as_ref())?;
+        Ok(Self::new(file))
     }
 
-    /// Creates a `Wad` starting with an already opened [`WadFile`], which must be an IWAD.
-    pub fn initial(file: Arc<WadFile>) -> wad::Result<Self> {
-        let file = file.expect(WadType::Iwad)?;
-        Ok(Self::initial_unchecked(file))
-    }
-
-    /// Creates a `Wad` starting with an already opened [`WadFile`], which need not be an IWAD. Use
-    /// this if you want to bypass IWAD/PWAD type checking.
-    pub fn initial_unchecked(file: Arc<WadFile>) -> Self {
+    fn new(file: WadFile) -> Self {
         Self {
-            initial: file,
+            initial: Arc::new(file),
             patches: Vec::new(),
         }
     }
 
-    /// Overlays an already opened [`WadFile`], which must be a PWAD.
-    pub fn patch(&self, file: Arc<WadFile>) -> wad::Result<Self> {
-        let file = file.expect(WadType::Pwad)?;
-        Ok(self.patch_unchecked(file))
+    /// Overlays a [PWAD].
+    ///
+    /// [PWAD]: WadType::Pwad
+    pub fn patch(&self, path: impl AsRef<Path>) -> wad::Result<Self> {
+        let file = WadFile::open(path.as_ref())?.expect(WadType::Pwad)?;
+        Ok(self.add(file))
     }
 
-    /// Overlays an already opened [`WadFile`], which need not be a PWAD. Use this if you want to
-    /// bypass IWAD/PWAD type checking.
-    pub fn patch_unchecked(&self, file: Arc<WadFile>) -> Self {
+    /// Overlays a WAD without checking if it's a [PWAD].
+    ///
+    /// [PWAD]: WadType::Pwad
+    pub fn patch_unchecked(&self, path: impl AsRef<Path>) -> wad::Result<Self> {
+        let file = WadFile::open(path.as_ref())?;
+        Ok(self.add(file))
+    }
+
+    fn add(&self, file: WadFile) -> Self {
         let mut clone = self.clone();
-        clone.patches.push(file);
+        clone.patches.push(Arc::new(file));
         clone
     }
 
@@ -62,7 +69,7 @@ impl Wad {
     /// Lumps in later files override lumps from earlier ones.
     ///
     /// It is an error if the lump is missing.
-    pub fn lump(&self, name: &str) -> wad::Result<&Lump> {
+    pub fn lump(&self, name: &str) -> wad::Result<LumpRef<'_>> {
         self.lookup(|patch| patch.try_lump(name), |initial| initial.lump(name))
     }
 
@@ -71,7 +78,7 @@ impl Wad {
     /// Lumps in later files override lumps from earlier ones.
     ///
     /// Returns `Ok(None)` if the lump is missing.
-    pub fn try_lump(&self, name: &str) -> wad::Result<Option<&Lump>> {
+    pub fn try_lump(&self, name: &str) -> wad::Result<Option<LumpRef<'_>>> {
         self.try_lookup(|file| file.try_lump(name))
     }
 
@@ -81,7 +88,7 @@ impl Wad {
     /// Blocks in later files override entire blocks from earlier files.
     ///
     /// It is an error if the block is missing.
-    pub fn lumps_following(&self, start: &str, size: usize) -> wad::Result<&[Lump]> {
+    pub fn lumps_following(&self, start: &str, size: usize) -> wad::Result<Vec<LumpRef<'_>>> {
         self.lookup(
             |patch| patch.try_lumps_following(start, size),
             |initial| initial.lumps_following(start, size),
@@ -94,7 +101,11 @@ impl Wad {
     /// Blocks in later files override entire blocks from earlier files.
     ///
     /// Returns `Ok(None)` if the block is missing.
-    pub fn try_lumps_following(&self, start: &str, size: usize) -> wad::Result<Option<&[Lump]>> {
+    pub fn try_lumps_following(
+        &self,
+        start: &str,
+        size: usize,
+    ) -> wad::Result<Option<Vec<LumpRef<'_>>>> {
         self.try_lookup(|file| file.try_lumps_following(start, size))
     }
 
@@ -104,7 +115,7 @@ impl Wad {
     /// Blocks in later wads override entire blocks from earlier files.
     ///
     /// It is an error if the block is missing.
-    pub fn lumps_between(&self, start: &str, end: &str) -> wad::Result<&[Lump]> {
+    pub fn lumps_between(&self, start: &str, end: &str) -> wad::Result<Vec<LumpRef<'_>>> {
         self.lookup(
             |patch| patch.try_lumps_between(start, end),
             |initial| initial.lumps_between(start, end),
@@ -117,35 +128,130 @@ impl Wad {
     /// Blocks in later wads override entire blocks from earlier files.
     ///
     /// Returns `Ok(None)` if the block is missing.
-    pub fn try_lumps_between(&self, start: &str, end: &str) -> wad::Result<Option<&[Lump]>> {
+    pub fn try_lumps_between(
+        &self,
+        start: &str,
+        end: &str,
+    ) -> wad::Result<Option<Vec<LumpRef<'_>>>> {
         self.try_lookup(|file| file.try_lumps_between(start, end))
     }
 
-    fn lookup<'wad, T>(
+    fn lookup<'wad, T, U>(
         &'wad self,
         try_lookup: impl Fn(&'wad WadFile) -> wad::Result<Option<T>>,
         lookup: impl FnOnce(&'wad WadFile) -> wad::Result<T>,
-    ) -> wad::Result<T> {
+    ) -> wad::Result<U>
+    where
+        T: FromFile<'wad, Out = U>,
+    {
         for patch in self.patches.iter().rev() {
             if let Some(value) = try_lookup(patch)? {
-                return Ok(value);
+                return Ok(value.from_file(patch));
             }
         }
 
-        lookup(&self.initial)
+        Ok(lookup(&self.initial)?.from_file(&self.initial))
     }
 
-    fn try_lookup<'wad, T>(
+    fn try_lookup<'wad, T, U>(
         &'wad self,
         try_lookup: impl Fn(&'wad WadFile) -> wad::Result<Option<T>>,
-    ) -> wad::Result<Option<T>> {
+    ) -> wad::Result<Option<U>>
+    where
+        T: FromFile<'wad, Out = U>,
+    {
         for patch in self.patches.iter().rev() {
             if let Some(value) = try_lookup(patch)? {
-                return Ok(Some(value));
+                return Ok(Some(value.from_file(&patch)));
             }
         }
 
-        try_lookup(&self.initial)
+        Ok(try_lookup(&self.initial)?.map(|t| t.from_file(&self.initial)))
+    }
+}
+
+/// A reference to a lump of data from a [`Wad`] file.
+pub struct LumpRef<'wad> {
+    file: &'wad WadFile,
+    name: &'wad str,
+    data: &'wad [u8],
+}
+
+impl LumpRef<'_> {
+    /// The path of the file containing the lump.
+    pub fn file(&self) -> &Path {
+        self.file.path()
+    }
+
+    /// The lump name, for example `"VERTEXES"` or `"THINGS"`.
+    pub fn name(&self) -> &str {
+        self.name
+    }
+
+    /// The lump data, a binary blob.
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
+
+    /// The size of the lump. Equivalent to `lump.data().len()`.
+    pub fn size(&self) -> usize {
+        self.data.len()
+    }
+}
+
+impl<'wad> fmt::Debug for LumpRef<'wad> {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            fmt,
+            "{} from {} ({} bytes)",
+            self.name,
+            self.file,
+            self.size()
+        )
+    }
+}
+
+impl<'wad> fmt::Display for LumpRef<'wad> {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(fmt, "{}", self.name)
+    }
+}
+
+/// This trait helps [`lookup`] and [`try_lookup`] annotate a lump or block of lumps with the path
+/// of the file that contains them.
+///
+/// [`lookup`]: Wad::lookup
+/// [`try_lookup`]: Wad::try_lookup
+trait FromFile<'file> {
+    type Out;
+    fn from_file(self, file: &'file WadFile) -> Self::Out;
+}
+
+/// Convert a `&Lump` into a `LumpRef` with the path of the file containing the lump.
+impl<'file> FromFile<'file> for &'file Lump {
+    type Out = LumpRef<'file>;
+
+    fn from_file(self, file: &'file WadFile) -> LumpRef {
+        LumpRef {
+            file,
+            name: &self.name,
+            data: &self.data,
+        }
+    }
+}
+
+/// Convert a `&[Lump]` into a `Vec<LumpRef>` with the path of the file containing the lumps.
+impl<'file> FromFile<'file> for &'file [Lump] {
+    type Out = Vec<LumpRef<'file>>;
+
+    fn from_file(self, file: &'file WadFile) -> Vec<LumpRef<'file>> {
+        self.iter()
+            .map(|lump| LumpRef {
+                file,
+                name: &lump.name,
+                data: &lump.data,
+            })
+            .collect()
     }
 }
 
@@ -157,7 +263,7 @@ where
     fn expect(self, expected: WadType) -> wad::Result<Self>;
 }
 
-impl ExpectWadType for Arc<WadFile> {
+impl ExpectWadType for WadFile {
     /// Checks that a [`WadFile`] is the correct type.
     fn expect(self, expected: WadType) -> wad::Result<Self> {
         if self.wad_type() == expected {
@@ -173,23 +279,90 @@ impl ExpectWadType for Arc<WadFile> {
 
 #[cfg(test)]
 mod tests {
+    use std::io;
+
     use super::*;
     use crate::test::*;
 
     #[test]
+    fn not_a_wad() {
+        assert_matches!(
+            Wad::open("test/killer.txt"),
+            Err(wad::Error::Io { source: err, ..}) if err.kind() == io::ErrorKind::InvalidData
+        );
+    }
+
+    #[test]
+    fn lump_data() {
+        assert_eq!(DOOM_WAD.lump("DEMO1").unwrap().size(), 20118);
+        assert_eq!(DOOM_WAD.lump("E1M1").unwrap().size(), 0);
+    }
+
+    #[test]
+    fn detect_duplicates() {
+        assert_matches!(DOOM_WAD.lump("E1M1"), Ok(_));
+        assert_matches!(DOOM_WAD.lump("THINGS"), Err(_));
+        assert_matches!(DOOM_WAD.lump("VERTEXES"), Err(_));
+        assert_matches!(DOOM_WAD.lump("SECTORS"), Err(_));
+    }
+
+    #[test]
+    fn lumps_between() {
+        let sprites = DOOM_WAD.lumps_between("S_START", "S_END").unwrap();
+        assert_eq!(sprites.first().unwrap().name, "S_START");
+        assert_eq!(sprites.last().unwrap().name, "S_END");
+        assert_eq!(sprites.len(), 485);
+        assert_eq!(sprites[100].name, "SARGB4B6");
+
+        // Backwards.
+        assert_matches!(DOOM_WAD.lumps_between("S_END", "S_START"), Err(_));
+    }
+
+    #[test]
+    fn lumps_following() {
+        let map = DOOM_WAD.lumps_following("E1M8", 11).unwrap();
+        assert_eq!(map.len(), 11);
+        assert_eq!(
+            map.iter().map(LumpRef::name).collect::<Vec<_>>(),
+            [
+                "E1M8", "THINGS", "LINEDEFS", "SIDEDEFS", "VERTEXES", "SEGS", "SSECTORS", "NODES",
+                "SECTORS", "REJECT", "BLOCKMAP"
+            ],
+        );
+
+        // Check in and out of bounds sizes.
+        assert_matches!(DOOM_WAD.try_lumps_following("E1M1", 0), Ok(Some(_)));
+        assert_matches!(DOOM_WAD.try_lumps_following("E1M1", 9999), Err(_));
+    }
+
+    #[test]
     fn iwad_then_pwads() {
         // IWAD + PWAD = success.
-        let _ = Wad::iwad(DOOM_WAD_PATH)
+        let _ = Wad::open(DOOM_WAD_PATH)
             .unwrap()
-            .pwad(KILLER_WAD_PATH)
+            .patch(KILLER_WAD_PATH)
             .unwrap();
 
         // IWAD + IWAD = error.
-        let wad = Wad::iwad(DOOM_WAD_PATH).unwrap();
-        assert_matches!(wad.pwad(DOOM2_WAD_PATH), Err(_));
+        let wad = Wad::open(DOOM_WAD_PATH).unwrap();
+        assert_matches!(wad.patch(DOOM2_WAD_PATH), Err(_));
 
         // Can't start with a PWAD.
-        assert_matches!(Wad::iwad(KILLER_WAD_PATH), Err(_));
+        assert_matches!(Wad::open(KILLER_WAD_PATH), Err(_));
+    }
+
+    #[test]
+    fn no_type_checking() -> wad::Result<()> {
+        // Nonsensical ordering.
+        let silly_wad = Wad::open_unchecked(KILLER_WAD_PATH)?
+            .patch_unchecked(DOOM2_WAD_PATH)?
+            .patch_unchecked(DOOM_WAD_PATH)?
+            .patch_unchecked(BIOTECH_WAD_PATH)?;
+
+        assert_matches!(silly_wad.lump("E1M1"), Ok(_));
+        assert_matches!(silly_wad.lump("MAP01"), Ok(_));
+
+        Ok(())
     }
 
     #[test]
@@ -200,7 +373,7 @@ mod tests {
                 .lumps_following("MAP01", 11)
                 .unwrap()
                 .iter()
-                .map(|lump| (lump.name.as_str(), lump.size()))
+                .map(|lump| (lump.name(), lump.size()))
                 .collect::<Vec<_>>(),
             [
                 ("MAP01", 0),
@@ -221,13 +394,13 @@ mod tests {
             1383
         );
 
-        let wad = DOOM2_WAD.patch_unchecked(BIOTECH_WAD_FILE.clone());
+        let wad = DOOM2_WAD.patch(BIOTECH_WAD_PATH).unwrap();
         assert_eq!(wad.lump("DEMO3").unwrap().size(), 9490);
         assert_eq!(
             wad.lumps_following("MAP01", 11)
                 .unwrap()
                 .iter()
-                .map(|lump| (lump.name.as_str(), lump.size()))
+                .map(|lump| (lump.name(), lump.size()))
                 .collect::<Vec<_>>(),
             [
                 ("MAP01", 0),
@@ -245,18 +418,6 @@ mod tests {
         );
         assert_eq!(wad.lumps_between("S_START", "S_END").unwrap().len(), 1383);
         assert_eq!(wad.lumps_between("SS_START", "SS_END").unwrap().len(), 265);
-    }
-
-    #[test]
-    fn no_type_checking() {
-        // Nonsensical ordering.
-        let silly_wad = Wad::initial_unchecked(KILLER_WAD_FILE.clone())
-            .patch_unchecked(DOOM2_WAD_FILE.clone())
-            .patch_unchecked(DOOM_WAD_FILE.clone())
-            .patch_unchecked(BIOTECH_WAD_FILE.clone());
-
-        assert_matches!(silly_wad.lump("E1M1"), Ok(_));
-        assert_matches!(silly_wad.lump("MAP01"), Ok(_));
     }
 
     // Make sure `Wad` is `Send` and `Sync`.
