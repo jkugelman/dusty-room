@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use thiserror::Error;
 
-use crate::wad::{self, WadType};
+use crate::wad::{self, WadKind};
 
 /// A specialized [`Result`] type for [`Wad`] and [`WadFile`] operations. This typedef is used to
 /// avoid writing out [`wad::Error`] directly and is otherwise a direct mapping to [`Result`].
@@ -31,14 +31,14 @@ pub enum Error {
 
     /// An IWAD was received when expecting a PWAD, or vice versa.
     #[error("{}: not {}", path.display(), match expected {
-        WadType::Iwad => "an IWAD",
-        WadType::Pwad => "a PWAD",
+        WadKind::Iwad => "an IWAD",
+        WadKind::Pwad => "a PWAD",
     })]
     WrongType {
         /// The file path.
         path: PathBuf,
         /// The WAD type that was expected.
-        expected: WadType,
+        expected: WadKind,
     },
 
     /// A WAD file or set of WAD files is malformed or missing data.

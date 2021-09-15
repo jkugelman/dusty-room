@@ -28,15 +28,15 @@ pub struct Wad {
 impl Wad {
     /// Opens the initial [IWAD].
     ///
-    /// [IWAD]: WadType::Iwad
+    /// [IWAD]: WadKind::Iwad
     pub fn open(path: impl AsRef<Path>) -> wad::Result<Self> {
-        let file = WadFile::open(path.as_ref())?.expect(WadType::Iwad)?;
+        let file = WadFile::open(path.as_ref())?.expect(WadKind::Iwad)?;
         Ok(Self::new(file))
     }
 
     /// Opens the initial WAD without checking if it's an [IWAD].
     ///
-    /// [IWAD]: WadType::Iwad
+    /// [IWAD]: WadKind::Iwad
     pub fn open_unchecked(path: impl AsRef<Path>) -> wad::Result<Self> {
         let file = WadFile::open(path.as_ref())?;
         Ok(Self::new(file))
@@ -51,15 +51,15 @@ impl Wad {
 
     /// Overlays a [PWAD].
     ///
-    /// [PWAD]: WadType::Pwad
+    /// [PWAD]: WadKind::Pwad
     pub fn patch(&self, path: impl AsRef<Path>) -> wad::Result<Self> {
-        let file = WadFile::open(path.as_ref())?.expect(WadType::Pwad)?;
+        let file = WadFile::open(path.as_ref())?.expect(WadKind::Pwad)?;
         Ok(self.add(file))
     }
 
     /// Overlays a WAD without checking if it's a [PWAD].
     ///
-    /// [PWAD]: WadType::Pwad
+    /// [PWAD]: WadKind::Pwad
     pub fn patch_unchecked(&self, path: impl AsRef<Path>) -> wad::Result<Self> {
         let file = WadFile::open(path.as_ref())?;
         Ok(self.add(file))
@@ -174,17 +174,17 @@ impl Wad {
 }
 
 /// Adds an extension method to check that a [`WadFile`] is the correct type.
-trait ExpectWadType
+trait ExpectWadKind
 where
     Self: Sized,
 {
-    fn expect(self, expected: WadType) -> wad::Result<Self>;
+    fn expect(self, expected: WadKind) -> wad::Result<Self>;
 }
 
-impl ExpectWadType for WadFile {
+impl ExpectWadKind for WadFile {
     /// Checks that a [`WadFile`] is the correct type.
-    fn expect(self, expected: WadType) -> wad::Result<Self> {
-        if self.wad_type() == expected {
+    fn expect(self, expected: WadKind) -> wad::Result<Self> {
+        if self.kind() == expected {
             Ok(self)
         } else {
             Err(wad::Error::WrongType {

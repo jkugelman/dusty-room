@@ -14,21 +14,21 @@ use crate::wad::{self, Lump, ResultExt};
 /// [`Wad`]: crate::wad::Wad
 pub(super) struct WadFile {
     path: PathBuf,
-    wad_type: WadType,
+    kind: WadKind,
     lumps: Vec<Lump>,
     lump_indices: HashMap<String, Vec<usize>>,
 }
 
 #[derive(Debug)]
 struct Header {
-    pub wad_type: WadType,
+    pub wad_kind: WadKind,
     pub lump_count: u32,
     pub directory_offset: u32,
 }
 
 /// WAD files can be either IWADs or PWADs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum WadType {
+pub enum WadKind {
     /// An IWAD or "internal wad" such as `doom.wad` that contains all of the data necessary to
     /// play.
     Iwad,
@@ -71,7 +71,7 @@ impl WadFile {
             let mut file = BufReader::new(file);
 
             let Header {
-                wad_type,
+                wad_kind: kind,
                 lump_count,
                 directory_offset,
             } = Self::read_header(&mut file)?;
@@ -81,7 +81,7 @@ impl WadFile {
 
             let mut wad_file = WadFile {
                 path: path.into(),
-                wad_type,
+                kind,
                 lumps: Vec::new(),
                 lump_indices: HashMap::new(),
             };
@@ -97,24 +97,24 @@ impl WadFile {
     fn read_header(mut file: impl Read + Seek) -> io::Result<Header> {
         file.seek(SeekFrom::Start(0))?;
 
-        let wad_type = Self::read_wad_type(&mut file)?;
+        let wad_kind = Self::read_wad_kind(&mut file)?;
         let lump_count = file.read_u32::<LittleEndian>()?;
         let directory_offset = file.read_u32::<LittleEndian>()?;
 
         Ok(Header {
-            wad_type,
+            wad_kind,
             lump_count,
             directory_offset,
         })
     }
 
-    fn read_wad_type(file: impl Read) -> io::Result<WadType> {
+    fn read_wad_kind(file: impl Read) -> io::Result<WadKind> {
         let mut buffer = Vec::new();
         file.take(4).read_to_end(&mut buffer)?;
 
         match &buffer[..] {
-            b"IWAD" => Ok(WadType::Iwad),
-            b"PWAD" => Ok(WadType::Pwad),
+            b"IWAD" => Ok(WadKind::Iwad),
+            b"PWAD" => Ok(WadKind::Pwad),
             _ => Err(io::Error::new(io::ErrorKind::InvalidData, "not a WAD file")),
         }
     }
@@ -177,8 +177,8 @@ impl WadFile {
     }
 
     /// Returns whether this is an IWAD or PWAD.
-    pub fn wad_type(&self) -> WadType {
-        self.wad_type
+    pub fn kind(&self) -> WadKind {
+        self.kind
     }
 
     /// Retrieves a unique lump by name.
