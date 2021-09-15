@@ -181,6 +181,18 @@ impl WadFile {
         self.kind
     }
 
+    /// Checks that the file is the correct kind.
+    pub fn expect(self, expected: WadKind) -> wad::Result<Self> {
+        if self.kind() == expected {
+            Ok(self)
+        } else {
+            Err(wad::Error::WrongType {
+                path: self.path().into(),
+                expected,
+            })
+        }
+    }
+
     /// Retrieves a unique lump by name.
     ///
     /// It is an error if the lump is missing.

@@ -173,28 +173,6 @@ impl Wad {
     }
 }
 
-/// Adds an extension method to check that a [`WadFile`] is the correct type.
-trait ExpectWadKind
-where
-    Self: Sized,
-{
-    fn expect(self, expected: WadKind) -> wad::Result<Self>;
-}
-
-impl ExpectWadKind for WadFile {
-    /// Checks that a [`WadFile`] is the correct type.
-    fn expect(self, expected: WadKind) -> wad::Result<Self> {
-        if self.kind() == expected {
-            Ok(self)
-        } else {
-            Err(wad::Error::WrongType {
-                path: self.path().into(),
-                expected,
-            })
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::io;
