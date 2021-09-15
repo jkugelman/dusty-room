@@ -13,7 +13,7 @@ pub struct Map {
 }
 
 impl Map {
-    /// Load the named map, typically `"ExMy"` for DOOM or `"MAPnn"` for DOOM II.
+    /// Load a map, typically named `"ExMy"` for DOOM or `"MAPnn"` for DOOM II.
     ///
     /// Returns `Ok(None)` if the map is missing.
     pub fn load(wad: &Wad, name: &str) -> map::Result<Option<Self>> {
