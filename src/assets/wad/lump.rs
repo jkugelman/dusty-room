@@ -49,11 +49,13 @@ impl LumpRef<'_> {
         if self.name == name {
             Ok(self)
         } else {
-            Err(wad::Error::malformed(
-                self.file(),
-                format!("{} missing", name),
-            ))
+            Err(self.error(&format!("{} missing", name)))
         }
+    }
+
+    /// Creates a [`wad::Error::Malformed`] blaming this lump.
+    pub(super) fn error(&self, desc: &str) -> wad::Error {
+        self.file.error(&format!("{}: {}", self.name(), desc))
     }
 }
 
@@ -84,6 +86,11 @@ pub struct LumpRefs<'wad> {
 }
 
 impl<'wad> LumpRefs<'wad> {
+    fn new(lumps: Vec<LumpRef<'wad>>) -> Self {
+        assert!(lumps.len() > 0);
+        Self { lumps }
+    }
+
     /// The path of the file containing the lump.
     ///
     /// # Panics
@@ -113,11 +120,17 @@ impl<'wad> LumpRefs<'wad> {
         if lump.name == name {
             Ok(lump)
         } else {
-            Err(wad::Error::malformed(
-                self.file(),
-                format!("{} missing {}", self.name(), name),
-            ))
+            Err(self.error(&format!("missing {}", name)))
         }
+    }
+
+    /// Creates a [`wad::Error::Malformed`] blaming this block.
+    pub(super) fn error(&self, desc: &str) -> wad::Error {
+        self.lumps
+            .first()
+            .expect("empty lump block")
+            .file
+            .error(desc)
     }
 }
 
@@ -157,15 +170,14 @@ impl<'file> FromFile<'file> for &'file [Lump] {
     type Out = LumpRefs<'file>;
 
     fn from_file(self, file: &'file WadFile) -> LumpRefs<'file> {
-        LumpRefs {
-            lumps: self
-                .iter()
+        LumpRefs::new(
+            self.iter()
                 .map(|lump| LumpRef {
                     file,
                     name: &lump.name,
                     data: &lump.data,
                 })
                 .collect(),
-        }
+        )
     }
 }

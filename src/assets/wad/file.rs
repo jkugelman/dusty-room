@@ -198,7 +198,7 @@ impl WadFile {
     /// It is an error if the lump is missing.
     pub fn lump(&self, name: &str) -> wad::Result<&Lump> {
         self.try_lump(name)?
-            .ok_or_else(|| wad::Error::malformed(&self.path, format!("{} missing", name)))
+            .ok_or_else(|| self.error(&format!("{} missing", name)))
     }
 
     /// Retrieves a unique lump by name.
@@ -214,20 +214,30 @@ impl WadFile {
         Ok(Some(&self.lumps[index]))
     }
 
-    /// Retrieves a block of `size` lumps following a unique named marker. The marker lump is
+    /// Retrieves a block of `size > 0` lumps following a unique named marker. The marker lump is
     /// included in the result.
     ///
     /// It is an error if the block is missing.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `size == 0`.
     pub fn lumps_following(&self, start: &str, size: usize) -> wad::Result<&[Lump]> {
         self.try_lumps_following(start, size)?
-            .ok_or_else(|| wad::Error::malformed(&self.path, format!("{} missing", start)))
+            .ok_or_else(|| self.error(&format!("{} missing", start)))
     }
 
-    /// Retrieves a block of `size` lumps following a unique named marker. The marker lump is
+    /// Retrieves a block of `size > 0` lumps following a unique named marker. The marker lump is
     /// included in the result.
     ///
     /// Returns `Ok(None)` if the block is missing.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `size == 0`.
     pub fn try_lumps_following(&self, start: &str, size: usize) -> wad::Result<Option<&[Lump]>> {
+        assert!(size > 0);
+
         let start_index = self.try_lump_index(start)?;
         if start_index.is_none() {
             return Ok(None);
@@ -235,10 +245,7 @@ impl WadFile {
         let start_index = start_index.unwrap();
 
         if start_index + size >= self.lumps.len() {
-            return Err(wad::Error::malformed(
-                &self.path,
-                format!("{} missing lumps", start),
-            ));
+            return Err(self.error(&format!("{} missing lumps", start)));
         }
 
         Ok(Some(&self.lumps[start_index..start_index + size]))
@@ -249,9 +256,8 @@ impl WadFile {
     ///
     /// It is an error if the block is missing.
     pub fn lumps_between(&self, start: &str, end: &str) -> wad::Result<&[Lump]> {
-        self.try_lumps_between(start, end)?.ok_or_else(|| {
-            wad::Error::malformed(&self.path, format!("{} and {} missing", start, end))
-        })
+        self.try_lumps_between(start, end)?
+            .ok_or_else(|| self.error(&format!("{} and {} missing", start, end)))
     }
 
     /// Retrieves a block of lumps between unique start and end markers. The marker lumps are
@@ -270,17 +276,11 @@ impl WadFile {
             }
 
             (Some(_), None) => {
-                return Err(wad::Error::malformed(
-                    &self.path,
-                    format!("{} without {}", start, end),
-                ));
+                return Err(self.error(&format!("{} without {}", start, end)));
             }
 
             (None, Some(_)) => {
-                return Err(wad::Error::malformed(
-                    &self.path,
-                    format!("{} without {}", end, start),
-                ));
+                return Err(self.error(&format!("{} without {}", end, start)));
             }
         }
 
@@ -288,10 +288,7 @@ impl WadFile {
         let end_index = end_index.unwrap();
 
         if start_index > end_index {
-            return Err(wad::Error::malformed(
-                &self.path,
-                format!("{} after {}", start, end),
-            ));
+            return Err(self.error(&format!("{} after {}", start, end)));
         }
 
         Ok(Some(&self.lumps[start_index..end_index + 1]))
@@ -303,11 +300,16 @@ impl WadFile {
 
         match indices {
             Some(&[index]) => Ok(Some(index)),
-            Some(indices) => Err(wad::Error::malformed(
-                &self.path,
-                format!("{} found {} times", name, indices.len()),
-            )),
+            Some(indices) => Err(self.error(&format!("{} found {} times", name, indices.len()))),
             None => Ok(None),
+        }
+    }
+
+    /// Creates a [`wad::Error::Malformed`] blaming this file.
+    pub(super) fn error(&self, desc: &str) -> wad::Error {
+        wad::Error::Malformed {
+            path: self.path.clone(),
+            desc: desc.into(),
         }
     }
 }

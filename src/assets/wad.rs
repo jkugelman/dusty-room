@@ -89,12 +89,16 @@ impl Wad {
         self.try_lookup(|file| file.try_lump(name))
     }
 
-    /// Retrieves a block of `size` lumps following a unique named marker. The marker lump is
+    /// Retrieves a block of `size > 0` lumps following a unique named marker. The marker lump is
     /// included in the result.
     ///
     /// Blocks in later files override entire blocks from earlier files.
     ///
     /// It is an error if the block is missing.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `size == 0`.
     pub fn lumps_following(&self, start: &str, size: usize) -> wad::Result<LumpRefs<'_>> {
         self.lookup(
             |patch| patch.try_lumps_following(start, size),
@@ -102,12 +106,16 @@ impl Wad {
         )
     }
 
-    /// Retrieves a block of `size` lumps following a unique named marker. The marker lump is
+    /// Retrieves a block of `size > 0` lumps following a unique named marker. The marker lump is
     /// included in the result.
     ///
     /// Blocks in later files override entire blocks from earlier files.
     ///
     /// Returns `Ok(None)` if the block is missing.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `size == 0`.
     pub fn try_lumps_following(
         &self,
         start: &str,
@@ -227,7 +235,7 @@ mod tests {
         );
 
         // Check in and out of bounds sizes.
-        assert_matches!(DOOM_WAD.try_lumps_following("E1M1", 0), Ok(Some(_)));
+        assert_matches!(DOOM_WAD.try_lumps_following("E1M1", 1), Ok(Some(_)));
         assert_matches!(DOOM_WAD.try_lumps_following("E1M1", 9999), Err(_));
     }
 
