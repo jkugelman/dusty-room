@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use thiserror::Error;
 
-use crate::wad::{self, WadKind};
+use super::wad::{self, WadKind};
 
 /// A specialized [`Result`] type for [`Wad`] and [`WadFile`] operations. This typedef is used to
 /// avoid writing out [`wad::Error`] directly and is otherwise a direct mapping to [`Result`].

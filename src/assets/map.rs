@@ -1,11 +1,6 @@
-mod error;
-
-pub use error::*;
-
 use std::fmt;
 
-use crate::map;
-use crate::wad::{LumpRef, Wad};
+use super::wad::{self, LumpRef, Wad};
 
 pub struct Map {
     name: String,
@@ -20,7 +15,7 @@ impl Map {
     /// Load a map, typically named `"ExMy"` for DOOM or `"MAPnn"` for DOOM II.
     ///
     /// Returns `Ok(None)` if the map is missing.
-    pub fn load(wad: &Wad, name: &str) -> map::Result<Option<Self>> {
+    pub fn load(wad: &Wad, name: &str) -> wad::Result<Option<Self>> {
         let lumps = wad.try_lumps_following(name, 11)?;
         if lumps.is_none() {
             return Ok(None);

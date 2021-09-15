@@ -1,5 +1,4 @@
-pub mod map;
-pub mod wad;
+pub mod assets;
 
 #[cfg(test)]
 #[macro_use]

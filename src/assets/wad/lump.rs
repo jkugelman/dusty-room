@@ -2,7 +2,7 @@ use std::fmt;
 use std::ops::Deref;
 use std::path::Path;
 
-use crate::wad::{self, WadFile};
+use super::wad::{self, WadFile};
 
 /// A named lump of data from a [`WadFile`].
 ///

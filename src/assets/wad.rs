@@ -8,7 +8,7 @@ pub use lump::*;
 
 use std::{path::Path, sync::Arc};
 
-use crate::wad;
+use super::wad;
 
 /// A stack of WAD files layered on top of each other, with later files overlaying earlier ones.
 ///

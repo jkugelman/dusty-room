@@ -7,7 +7,7 @@ use std::{fmt, io};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
-use crate::wad::{self, Lump, ResultExt};
+use super::wad::{self, Lump, ResultExt};
 
 /// A single IWAD or PWAD file stored in a [`Wad`] stack.
 ///
