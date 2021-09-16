@@ -26,3 +26,17 @@ impl Assets {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test::*;
+
+    #[test]
+    fn load() {
+        Assets::load(&DOOM_WAD).unwrap();
+        Assets::load(&DOOM2_WAD).unwrap();
+        Assets::load(&KILLER_WAD).unwrap();
+        Assets::load(&BIOTECH_WAD).unwrap();
+    }
+}
