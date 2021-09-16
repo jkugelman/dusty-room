@@ -1,6 +1,6 @@
-use std::fmt;
 use std::ops::Deref;
 use std::path::Path;
+use std::{fmt, vec};
 
 use super::wad::{self, WadFile};
 
@@ -139,6 +139,15 @@ impl<'wad> Deref for LumpRefs<'wad> {
 
     fn deref(&self) -> &[LumpRef<'wad>] {
         &self.lumps
+    }
+}
+
+impl<'wad> IntoIterator for LumpRefs<'wad> {
+    type Item = LumpRef<'wad>;
+    type IntoIter = vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.lumps.into_iter()
     }
 }
 
