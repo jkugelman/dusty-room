@@ -1,13 +1,13 @@
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::path::Path;
-use std::{fmt, vec};
+use std::{fmt, slice, vec};
 
 use super::wad::{self, WadFile};
 
 /// A named lump of data from a [`WadFile`].
 ///
 /// This type is not publicly visible. [`Wad`]'s public interface hides `Lump`s behind [`LumpRef`]s.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(super) struct Lump {
     pub name: String,
     pub data: Vec<u8>,
@@ -29,7 +29,7 @@ impl LumpRef<'_> {
         self.file.path()
     }
 
-    /// The lump name, for example `"VERTEXES"` or `"THINGS"`.
+    /// The lump name, for example `VERTEXES` or `THINGS`.
     pub fn name(&self) -> &str {
         self.name
     }
@@ -42,6 +42,11 @@ impl LumpRef<'_> {
     /// The size of the lump. Equivalent to `lump.data().len()`.
     pub fn size(&self) -> usize {
         self.data.len()
+    }
+
+    /// Returns `true` if the lump contains no data.
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
     }
 
     /// Checks that the lump has the expected name.
@@ -59,7 +64,7 @@ impl LumpRef<'_> {
     }
 }
 
-impl<'wad> fmt::Debug for LumpRef<'wad> {
+impl<'a> fmt::Debug for LumpRef<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             fmt,
@@ -71,7 +76,7 @@ impl<'wad> fmt::Debug for LumpRef<'wad> {
     }
 }
 
-impl<'wad> fmt::Display for LumpRef<'wad> {
+impl<'a> fmt::Display for LumpRef<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(fmt, "{}", self.name)
     }
@@ -81,17 +86,17 @@ impl<'wad> fmt::Display for LumpRef<'wad> {
 ///
 /// Usually the first lump gives the name of the block.
 #[derive(Clone, Debug)]
-pub struct LumpRefs<'wad> {
-    lumps: Vec<LumpRef<'wad>>,
+pub struct LumpRefs<'a> {
+    lumps: Vec<LumpRef<'a>>,
 }
 
-impl<'wad> LumpRefs<'wad> {
-    fn new(lumps: Vec<LumpRef<'wad>>) -> Self {
+impl<'a> LumpRefs<'a> {
+    fn new(lumps: Vec<LumpRef<'a>>) -> Self {
         assert!(lumps.len() > 0);
         Self { lumps }
     }
 
-    /// The path of the file containing the lump.
+    /// The path of the file containing the lumps.
     ///
     /// # Panics
     ///
@@ -114,7 +119,7 @@ impl<'wad> LumpRefs<'wad> {
     /// # Panics
     ///
     /// Panics if the index is out of bounds.
-    pub fn get_with_name(&self, index: usize, name: &str) -> wad::Result<LumpRef<'wad>> {
+    pub fn get_with_name(&self, index: usize, name: &str) -> wad::Result<LumpRef<'a>> {
         let lump = self[index];
 
         if lump.name == name {
@@ -125,7 +130,7 @@ impl<'wad> LumpRefs<'wad> {
     }
 
     /// Creates a [`wad::Error::Malformed`] blaming this block.
-    pub(super) fn error(&self, desc: &str) -> wad::Error {
+    pub fn error(&self, desc: &str) -> wad::Error {
         self.lumps
             .first()
             .expect("empty lump block")
@@ -134,20 +139,44 @@ impl<'wad> LumpRefs<'wad> {
     }
 }
 
-impl<'wad> Deref for LumpRefs<'wad> {
-    type Target = [LumpRef<'wad>];
+impl<'a> Deref for LumpRefs<'a> {
+    type Target = Vec<LumpRef<'a>>;
 
-    fn deref(&self) -> &[LumpRef<'wad>] {
+    fn deref(&self) -> &Self::Target {
         &self.lumps
     }
 }
 
-impl<'wad> IntoIterator for LumpRefs<'wad> {
-    type Item = LumpRef<'wad>;
+impl<'a> DerefMut for LumpRefs<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.lumps
+    }
+}
+
+impl<'a> IntoIterator for LumpRefs<'a> {
+    type Item = LumpRef<'a>;
     type IntoIter = vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.lumps.into_iter()
+    }
+}
+
+impl<'a, 'b> IntoIterator for &'a LumpRefs<'b> {
+    type Item = &'a LumpRef<'b>;
+    type IntoIter = slice::Iter<'a, LumpRef<'b>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, 'b> IntoIterator for &'a mut LumpRefs<'b> {
+    type Item = &'a mut LumpRef<'b>;
+    type IntoIter = slice::IterMut<'a, LumpRef<'b>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 

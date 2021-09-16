@@ -1,10 +1,10 @@
-mod error;
-mod file;
-mod lump;
-
 pub use error::*;
 pub use file::*;
 pub use lump::*;
+
+mod error;
+mod file;
+mod lump;
 
 use std::{path::Path, sync::Arc};
 

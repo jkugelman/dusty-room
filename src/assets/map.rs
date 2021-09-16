@@ -1,3 +1,7 @@
+mod geom;
+
+pub use geom::*;
+
 use std::fmt;
 
 use super::wad::{self, LumpRef, Wad};
@@ -12,7 +16,7 @@ pub struct Map {
 }
 
 impl Map {
-    /// Load a map, typically named `"ExMy"` for DOOM or `"MAPnn"` for DOOM II.
+    /// Load a map, typically named `ExMy` for DOOM or `MAPnn` for DOOM II.
     ///
     /// Returns `Ok(None)` if the map is missing.
     pub fn load(wad: &Wad, name: &str) -> wad::Result<Option<Self>> {

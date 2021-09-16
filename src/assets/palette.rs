@@ -1,6 +1,8 @@
 use std::fmt;
 use std::mem::{self, size_of, MaybeUninit};
 
+use ndarray::Array2;
+
 use super::{wad, Wad};
 
 /// An RGB color.
@@ -30,25 +32,26 @@ impl fmt::Display for Color {
 /// An index into a [`Palette`].
 pub type ColorIndex = u8;
 
-/// A 256-color palette. Part of a set of [`Palettes`].
+/// A 2D array of indexed pixels.
+pub type Pixels = Array2<ColorIndex>;
+
+/// A 256-color palette. Part of a [`PaletteBank`].
 pub type Palette = [Color; 256];
 
-/// A set of color palettes loaded from the `"PLAYPAL"` lump.
+/// A bank of color palettes loaded from the `PLAYPAL` lump.
 ///
-/// There is only one palette active at a time.
-pub struct Palettes {
+/// The active palette can be switched at any time. There is no palette selected initially so make
+/// sure to choose one.
+#[derive(Debug)]
+pub struct PaletteBank {
     palettes: Vec<Palette>,
-    active: usize,
+    active_index: Option<usize>,
 }
 
-impl Palettes {
-    /// Loads a set of color palettes from the `"PLAYPAL"` lump.
-    pub fn load(wad: &Wad) -> wad::Result<Palettes> {
+impl PaletteBank {
+    /// Loads a bank of color palettes from the `PLAYPAL` lump.
+    pub fn load(wad: &Wad) -> wad::Result<PaletteBank> {
         let lump = wad.lump("PLAYPAL")?;
-
-        if lump.size() == 0 {
-            return Err(lump.error("empty"));
-        }
 
         if lump.size() % size_of::<Palette>() != 0 {
             return Err(lump.error(&format!(
@@ -85,22 +88,20 @@ impl Palettes {
             })
             .collect();
 
-        assert!(palettes.len() > 0);
-
-        Ok(Palettes {
+        Ok(PaletteBank {
             palettes,
-            active: 0,
+            active_index: None,
         })
     }
 
-    /// The number of selectable palettes.
+    /// The number of palettes in the bank.
     pub fn count(&self) -> usize {
         self.palettes.len()
     }
 
     /// Gets the active palette.
     pub fn active(&self) -> &Palette {
-        &self.palettes[self.active]
+        &self.palettes[self.active_index.expect("active palette not set")]
     }
 
     /// Sets and returns the active palette.
@@ -110,7 +111,7 @@ impl Palettes {
     /// Panics if `index` is out of range.
     pub fn set_active(&mut self, index: usize) -> &Palette {
         assert!(index < self.count());
-        self.active = index;
+        self.active_index = Some(index);
         self.active()
     }
 }
@@ -122,7 +123,7 @@ mod tests {
 
     #[test]
     fn load() {
-        let mut palettes = Palettes::load(&DOOM_WAD).unwrap();
+        let mut palettes = PaletteBank::load(&DOOM_WAD).unwrap();
 
         assert_eq!(palettes.count(), 14);
 
