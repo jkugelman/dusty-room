@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::convert::TryInto;
+
 use std::fmt;
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
@@ -152,11 +153,16 @@ impl WadFile {
             let mut name = [0u8; 8];
             file.read_exact(&mut name).err_path(path)?;
 
-            let name = std::str::from_utf8(&name)
-                .map_err(|err| wad::Error::malformed(path, &err.to_string()))?
-                .trim_end_matches('\0')
-                .to_string();
+            // Strip trailing NULs and convert into a `String`. Stay away from `str::from_utf8` so
+            // we don't have to deal with UTF-8 decoding errors.
+            let name = name
+                .iter()
+                .take_while(|&&b| b != 0u8)
+                .map(|&b| b as char)
+                .collect::<String>();
 
+            // Verify that the lump name is all uppercase, digits, and a handful of acceptable
+            // symbols.
             if !LUMP_NAME_REGEX.is_match(&name) {
                 return Err(wad::Error::malformed(
                     path,
