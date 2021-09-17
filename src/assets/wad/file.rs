@@ -173,6 +173,14 @@ impl WadFile {
                 .take(size.try_into().unwrap())
                 .read_to_end(&mut data)?;
 
+            if data.len() < size {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    format!("{} larger than file", LumpLocation { offset, size, name }),
+                ));
+            }
+            assert!(data.len() == size);
+
             self.lumps.push(Lump { name, data });
         }
 
