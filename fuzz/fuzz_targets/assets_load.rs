@@ -19,10 +19,11 @@ fuzz_target!(|data: &[u8]| {
         let wad = Wad::open(file.path())?;
         let _ = Assets::load(&wad)?;
 
+        println!("{}: 👍 assets loaded", file.path().display());
         Ok(())
     })();
 
     if let Err(err) = result {
-        eprintln!("{}", err);
+        println!("{}", err);
     }
 });
