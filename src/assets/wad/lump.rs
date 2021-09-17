@@ -7,10 +7,22 @@ use super::wad::{self, WadFile};
 /// A named lump of data from a [`WadFile`].
 ///
 /// This type is not publicly visible. [`Wad`]'s public interface hides `Lump`s behind [`LumpRef`]s.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(super) struct Lump {
     pub name: String,
     pub data: Vec<u8>,
+}
+
+impl fmt::Debug for Lump {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{} ({} bytes)", self.name, self.data.len())
+    }
+}
+
+impl fmt::Display for Lump {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.name)
+    }
 }
 
 /// A reference to a lump of data in a [`Wad`] file.

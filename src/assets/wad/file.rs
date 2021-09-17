@@ -12,6 +12,7 @@ use super::wad::{self, Lump, ResultExt};
 /// A single IWAD or PWAD file stored in a [`Wad`] stack.
 ///
 /// [`Wad`]: crate::wad::Wad
+#[derive(Debug)]
 pub(super) struct WadFile {
     path: PathBuf,
     kind: WadKind,
@@ -126,7 +127,7 @@ impl WadFile {
     ) -> io::Result<Directory> {
         file.seek(SeekFrom::Start(offset.into()))?;
 
-        // The WAD header is untrusted so clamp how much memory is pre-allocated. For comparison,
+        // The WAD is untrusted so clamp how much memory is pre-allocated. For comparison,
         // `doom.wad` has 1,264 lumps and `doom2.wad` has 2,919.
         let mut lump_locations = Vec::with_capacity(lump_count.clamp(0, 4096));
 
@@ -163,9 +164,14 @@ impl WadFile {
         for location in locations {
             let LumpLocation { offset, size, name } = location;
 
+            // The WAD is untrusted so clamp how much memory is pre-allocated. For comparison,
+            // `doom.wad` has a 68,168 byte `WIMAP0`, and `killer.wad` has a 95,1000 `SIDEDEFS`.
+            let mut data = Vec::with_capacity(size.clamp(0, 65_536));
+
             file.seek(SeekFrom::Start(offset.into()))?;
-            let mut data = vec![0u8; size.try_into().unwrap()];
-            file.read_exact(&mut data)?;
+            file.by_ref()
+                .take(size.try_into().unwrap())
+                .read_to_end(&mut data)?;
 
             self.lumps.push(Lump { name, data });
         }
@@ -316,12 +322,6 @@ impl WadFile {
     }
 }
 
-impl fmt::Debug for WadFile {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{:?}", self.path)
-    }
-}
-
 impl fmt::Display for WadFile {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.path.display())
@@ -329,6 +329,6 @@ impl fmt::Display for WadFile {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     //! This file is covered by tests in [`crate::wad::wad`].
 }
