@@ -14,9 +14,9 @@ use self::wad::Wad;
 /// Holds all of the assets loaded from a [`Wad`]: maps, sprites, textures, sounds, etc.
 #[derive(Debug)]
 pub struct Assets {
-    palette_bank: PaletteBank,
-    flat_bank: FlatBank,
-    texture_bank: TextureBank,
+    _palette_bank: PaletteBank,
+    _flat_bank: FlatBank,
+    _texture_bank: TextureBank,
 }
 
 impl Assets {
@@ -27,9 +27,9 @@ impl Assets {
         let texture_bank = TextureBank::load(&wad)?;
 
         Ok(Assets {
-            palette_bank,
-            flat_bank,
-            texture_bank,
+            _palette_bank: palette_bank,
+            _flat_bank: flat_bank,
+            _texture_bank: texture_bank,
         })
     }
 }
