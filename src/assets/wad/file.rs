@@ -21,9 +21,9 @@ pub(super) struct WadFile {
 
 #[derive(Debug)]
 struct Header {
-    pub wad_kind: WadKind,
-    pub lump_count: u32,
-    pub directory_offset: u32,
+    pub kind: WadKind,
+    pub lump_count: usize,
+    pub directory_offset: u64,
 }
 
 /// WAD files can be either IWADs or PWADs.
@@ -44,8 +44,8 @@ struct Directory {
 
 #[derive(Debug)]
 struct LumpLocation {
-    pub offset: u32,
-    pub size: u32,
+    pub offset: u64,
+    pub size: usize,
     pub name: String,
 }
 
@@ -71,13 +71,13 @@ impl WadFile {
             let mut file = BufReader::new(file);
 
             let Header {
-                wad_kind: kind,
+                kind,
                 lump_count,
                 directory_offset,
             } = Self::read_header(&mut file)?;
 
             let Directory { lump_locations } =
-                Self::read_directory(&mut file, directory_offset, lump_count)?;
+                Self::read_directory(&mut file, lump_count, directory_offset)?;
 
             let mut wad_file = WadFile {
                 path: path.into(),
@@ -97,18 +97,18 @@ impl WadFile {
     fn read_header(mut file: impl Read + Seek) -> io::Result<Header> {
         file.seek(SeekFrom::Start(0))?;
 
-        let wad_kind = Self::read_wad_kind(&mut file)?;
-        let lump_count = file.read_u32::<LittleEndian>()?;
-        let directory_offset = file.read_u32::<LittleEndian>()?;
+        let kind = Self::read_kind(&mut file)?;
+        let lump_count: usize = file.read_u32::<LittleEndian>()?.try_into().unwrap();
+        let directory_offset: u64 = file.read_u32::<LittleEndian>()?.try_into().unwrap();
 
         Ok(Header {
-            wad_kind,
+            kind,
             lump_count,
             directory_offset,
         })
     }
 
-    fn read_wad_kind(file: impl Read) -> io::Result<WadKind> {
+    fn read_kind(file: impl Read) -> io::Result<WadKind> {
         let mut buffer = Vec::new();
         file.take(4).read_to_end(&mut buffer)?;
 
@@ -121,16 +121,18 @@ impl WadFile {
 
     fn read_directory(
         mut file: impl Read + Seek,
-        directory_offset: u32,
-        lump_count: u32,
+        lump_count: usize,
+        offset: u64,
     ) -> io::Result<Directory> {
-        file.seek(SeekFrom::Start(directory_offset.into()))?;
+        file.seek(SeekFrom::Start(offset.into()))?;
 
-        let mut lump_locations = Vec::with_capacity(lump_count.try_into().unwrap());
+        // The WAD header is untrusted so clamp how much memory is pre-allocated. For comparison,
+        // `doom.wad` has 1,264 lumps and `doom2.wad` has 2,919.
+        let mut lump_locations = Vec::with_capacity(lump_count.clamp(0, 4096));
 
         for _ in 0..lump_count {
-            let offset = file.read_u32::<LittleEndian>()?;
-            let size = file.read_u32::<LittleEndian>()?;
+            let offset: u64 = file.read_u32::<LittleEndian>()?.into();
+            let size: usize = file.read_u32::<LittleEndian>()?.try_into().unwrap();
             let mut name = [0u8; 8];
             file.read_exact(&mut name)?;
             let name = std::str::from_utf8(&name)
