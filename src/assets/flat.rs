@@ -94,7 +94,7 @@ pub struct Flat {
 impl Flat {
     /// Load a flat from a lump.
     pub fn load(lump: LumpRef) -> wad::Result<Self> {
-        let name = lump.name().into();
+        let name = lump.name().to_owned();
         let buffer = lump.expect_size(64 * 64)?.data().to_vec();
         let image = Image::from_raw(64, 64, buffer).unwrap();
 

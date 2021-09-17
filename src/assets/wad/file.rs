@@ -87,7 +87,7 @@ impl WadFile {
             Self::read_directory(path, &mut file, lump_count, directory_offset)?;
 
         let mut wad_file = WadFile {
-            path: path.into(),
+            path: path.to_owned(),
             kind,
             lumps: Vec::new(),
             lump_indices: HashMap::new(),
@@ -102,21 +102,13 @@ impl WadFile {
         file.seek(SeekFrom::Start(0)).err_path(path)?;
 
         let kind = Self::read_kind(path, &mut file)?;
-        let lump_count: usize = file
-            .read_u32::<LittleEndian>()
-            .err_path(path)?
-            .try_into()
-            .unwrap();
-        let directory_offset: u64 = file
-            .read_u32::<LittleEndian>()
-            .err_path(path)?
-            .try_into()
-            .unwrap();
+        let lump_count = file.read_u32::<LittleEndian>().err_path(path)?;
+        let directory_offset = file.read_u32::<LittleEndian>().err_path(path)?;
 
         Ok(Header {
             kind,
-            lump_count,
-            directory_offset,
+            lump_count: lump_count.try_into().unwrap(),
+            directory_offset: directory_offset.try_into().unwrap(),
         })
     }
 
@@ -144,12 +136,8 @@ impl WadFile {
         let mut lump_locations = Vec::with_capacity(lump_count.clamp(0, 4096));
 
         for _ in 0..lump_count {
-            let offset: u64 = file.read_u32::<LittleEndian>().err_path(path)?.into();
-            let size: usize = file
-                .read_u32::<LittleEndian>()
-                .err_path(path)?
-                .try_into()
-                .unwrap();
+            let offset = file.read_u32::<LittleEndian>().err_path(path)?;
+            let size = file.read_u32::<LittleEndian>().err_path(path)?;
             let mut name = [0u8; 8];
             file.read_exact(&mut name).err_path(path)?;
 
@@ -170,7 +158,11 @@ impl WadFile {
                 ));
             }
 
-            lump_locations.push(LumpLocation { offset, size, name });
+            lump_locations.push(LumpLocation {
+                offset: offset.into(),
+                size: size.try_into().unwrap(),
+                name,
+            });
         }
 
         Ok(Directory { lump_locations })
@@ -234,7 +226,7 @@ impl WadFile {
             Ok(self)
         } else {
             Err(wad::Error::WrongType {
-                path: self.path().into(),
+                path: self.path().to_owned(),
                 expected,
             })
         }
@@ -354,10 +346,7 @@ impl WadFile {
 
     /// Creates a [`wad::Error::Malformed`] blaming this file.
     pub fn error(&self, desc: &str) -> wad::Error {
-        wad::Error::Malformed {
-            path: self.path.clone(),
-            desc: desc.into(),
-        }
+        wad::Error::malformed(&self.path, desc)
     }
 }
 

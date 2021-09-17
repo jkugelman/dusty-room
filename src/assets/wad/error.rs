@@ -54,8 +54,8 @@ pub enum Error {
 impl Error {
     pub fn malformed(path: impl AsRef<Path>, desc: &str) -> Self {
         Self::Malformed {
-            path: path.as_ref().into(),
-            desc: desc.into(),
+            path: path.as_ref().to_owned(),
+            desc: desc.to_owned(),
         }
     }
 }
@@ -71,7 +71,7 @@ impl<T> ResultExt<T> for io::Result<T> {
     /// Maps a [`std::io::Error`] into a [`wad::Error::Io`] by adding a file path for context.
     fn err_path(self, path: impl AsRef<Path>) -> wad::Result<T> {
         self.map_err(|err| wad::Error::Io {
-            path: path.as_ref().into(),
+            path: path.as_ref().to_owned(),
             source: err,
         })
     }
