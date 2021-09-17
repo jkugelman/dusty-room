@@ -17,10 +17,7 @@ impl Flat {
     pub fn load(lump: LumpRef) -> wad::Result<Self> {
         let shape = Self::shape();
         let size = shape.0 * shape.1;
-
-        if lump.size() != size {
-            return Err(lump.error(&format!("expected {} bytes, got {}", size, lump.size())));
-        }
+        let lump = lump.expect_size(size)?;
 
         let name = lump.name().into();
         let pixels = Pixels::from_shape_vec(shape, lump.data().to_vec()).unwrap();

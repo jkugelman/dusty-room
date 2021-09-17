@@ -50,11 +50,20 @@ impl LumpRef<'_> {
     }
 
     /// Checks that the lump has the expected name.
-    pub fn expect(self, name: &str) -> wad::Result<Self> {
+    pub fn expect_name(self, name: &str) -> wad::Result<Self> {
         if self.name == name {
             Ok(self)
         } else {
             Err(self.error(&format!("{} missing", name)))
+        }
+    }
+
+    /// Checks that the lump is the expected number of bytes.
+    pub fn expect_size(self, size: usize) -> wad::Result<Self> {
+        if self.size() == size {
+            Ok(self)
+        } else {
+            Err(self.error(&format!("expected {} bytes, got {}", size, self.size())))
         }
     }
 
@@ -120,13 +129,7 @@ impl<'a> LumpRefs<'a> {
     ///
     /// Panics if the index is out of bounds.
     pub fn get_with_name(&self, index: usize, name: &str) -> wad::Result<LumpRef<'a>> {
-        let lump = self[index];
-
-        if lump.name == name {
-            Ok(lump)
-        } else {
-            Err(self.error(&format!("missing {}", name)))
-        }
+        self[index].expect_name(name)
     }
 
     /// Creates a [`wad::Error::Malformed`] blaming this block.
