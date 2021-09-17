@@ -11,13 +11,35 @@ use kdoom::assets::wad::Wad;
 use kdoom::assets::Assets;
 
 fuzz_target!(|data: &[u8]| {
-    if let Ok(mut file) = NamedTempFile::new() {
-        if let Ok(()) = file.as_file_mut().write_all(data) {
-            if let Ok(wad) = Wad::open(file.path()) {
-                if let Err(err) = Assets::load(&wad) {
-                    dbg!(err);
-                }
-            }
+    let mut file = match NamedTempFile::new() {
+        Ok(file) => file,
+        Err(err) => {
+            dbg!(err);
+            return;
+        }
+    };
+
+    match file.as_file_mut().write_all(data) {
+        Ok(()) => {}
+        Err(err) => {
+            dbg!(err);
+            return;
         }
     }
+
+    let wad = match Wad::open(file.path()) {
+        Ok(wad) => wad,
+        Err(err) => {
+            dbg!(err);
+            return;
+        }
+    };
+
+    let _ = match Assets::load(&wad) {
+        Ok(assets) => assets,
+        Err(err) => {
+            dbg!(err);
+            return;
+        }
+    };
 });
