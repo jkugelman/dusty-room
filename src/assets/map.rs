@@ -16,7 +16,7 @@ pub struct Map {
 }
 
 impl Map {
-    /// Load a map, typically named `ExMy` for DOOM or `MAPnn` for DOOM II.
+    /// Loads a map, typically named `ExMy` for DOOM or `MAPnn` for DOOM II.
     ///
     /// Returns `Ok(None)` if the map is missing.
     pub fn load(wad: &Wad, name: &str) -> wad::Result<Option<Self>> {
@@ -51,13 +51,13 @@ impl Map {
 }
 
 impl fmt::Debug for Map {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{:?}", self.name)
     }
 }
 
 impl fmt::Display for Map {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.name)
     }
 }

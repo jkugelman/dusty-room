@@ -1,10 +1,14 @@
 pub mod flat;
+pub mod image;
 pub mod map;
 pub mod palette;
+pub mod patch;
+pub mod texture;
 pub mod wad;
 
 use self::flat::FlatBank;
 use self::palette::PaletteBank;
+use self::texture::TextureBank;
 use self::wad::Wad;
 
 /// Holds all of the assets loaded from a [`Wad`]: maps, sprites, textures, sounds, etc.
@@ -12,17 +16,20 @@ use self::wad::Wad;
 pub struct Assets {
     palette_bank: PaletteBank,
     flat_bank: FlatBank,
+    texture_bank: TextureBank,
 }
 
 impl Assets {
-    /// Load assets from a [`Wad`].
+    /// Loads assets from a [`Wad`].
     pub fn load(wad: &Wad) -> wad::Result<Self> {
         let palette_bank = PaletteBank::load(&wad)?;
         let flat_bank = FlatBank::load(&wad)?;
+        let texture_bank = TextureBank::load(&wad)?;
 
         Ok(Assets {
             palette_bank,
             flat_bank,
+            texture_bank,
         })
     }
 }

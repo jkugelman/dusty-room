@@ -2,61 +2,9 @@ use std::collections::{btree_map, BTreeMap};
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 
-use super::palette::Pixels;
+use super::image::Image;
+use super::map;
 use super::wad::{self, LumpRef, Wad};
-
-/// A 64x64 floor or ceiling texture.
-#[derive(Clone)]
-pub struct Flat {
-    name: String,
-    pixels: Pixels,
-}
-
-impl Flat {
-    /// Load a flat from a lump.
-    pub fn load(lump: LumpRef) -> wad::Result<Self> {
-        let shape = Self::shape();
-        let size = shape.0 * shape.1;
-        let lump = lump.expect_size(size)?;
-
-        let name = lump.name().into();
-        let pixels = Pixels::from_shape_vec(shape, lump.data().to_vec()).unwrap();
-
-        Ok(Flat { name, pixels })
-    }
-
-    /// Flat name, the name of its [lump].
-    ///
-    /// [lump]: wad::LumpRef
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// Flats are always 64x64.
-    pub const fn shape() -> (usize, usize) {
-        (64, 64)
-    }
-}
-
-impl Deref for Flat {
-    type Target = Pixels;
-
-    fn deref(&self) -> &Self::Target {
-        &self.pixels
-    }
-}
-
-impl fmt::Debug for Flat {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.name)
-    }
-}
-
-impl fmt::Display for Flat {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.name)
-    }
-}
 
 /// A list of floor and ceiling textures, indexed by name.
 #[derive(Clone)]
@@ -133,6 +81,56 @@ impl<'a> IntoIterator for &'a mut FlatBank {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
+    }
+}
+
+/// A floor or ceiling texture.
+#[derive(Clone)]
+pub struct Flat {
+    name: String,
+    image: Image,
+}
+
+impl Flat {
+    /// Load a flat from a lump.
+    pub fn load(lump: LumpRef) -> wad::Result<Self> {
+        let name = lump.name().into();
+        let buffer = lump.expect_size(64 * 64)?.data().to_vec();
+        let image = Image::from_raw(64, 64, buffer).unwrap();
+
+        Ok(Flat { name, image })
+    }
+
+    /// Flat name, the name of its [lump].
+    ///
+    /// [lump]: wad::LumpRef
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// The physical size of a flat in map space. Flats are always 64x64.
+    pub const fn size() -> map::Size2D {
+        map::Size2D::new(64, 64)
+    }
+}
+
+impl Deref for Flat {
+    type Target = Image;
+
+    fn deref(&self) -> &Self::Target {
+        &self.image
+    }
+}
+
+impl fmt::Debug for Flat {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.name)
+    }
+}
+
+impl fmt::Display for Flat {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.name)
     }
 }
 

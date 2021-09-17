@@ -67,6 +67,18 @@ impl LumpRef<'_> {
         }
     }
 
+    /// Checks that the lump contains a multiple of `size` bytes.
+    pub fn expect_size_multiple(self, size: usize) -> wad::Result<Self> {
+        if self.size() % size == 0 {
+            Ok(self)
+        } else {
+            Err(self.error(&format!(
+                "expected a multiple of {} bytes, got {}",
+                size,
+                self.size()
+            )))
+        }
+    }
     /// Creates a [`wad::Error::Malformed`] blaming this lump.
     pub fn error(&self, desc: &str) -> wad::Error {
         self.file.error(&format!("{}: {}", self.name(), desc))
@@ -74,7 +86,7 @@ impl LumpRef<'_> {
 }
 
 impl<'a> fmt::Debug for LumpRef<'a> {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(
             fmt,
             "{} from {} ({} bytes)",
@@ -86,7 +98,7 @@ impl<'a> fmt::Debug for LumpRef<'a> {
 }
 
 impl<'a> fmt::Display for LumpRef<'a> {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.name)
     }
 }

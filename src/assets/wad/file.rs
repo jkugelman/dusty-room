@@ -50,7 +50,7 @@ struct LumpLocation {
 }
 
 impl fmt::Display for LumpLocation {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(
             fmt,
             "{} (offset {}, size {})",
@@ -315,13 +315,13 @@ impl WadFile {
 }
 
 impl fmt::Debug for WadFile {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{:?}", self.path)
     }
 }
 
 impl fmt::Display for WadFile {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.path.display())
     }
 }
