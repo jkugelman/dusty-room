@@ -51,6 +51,15 @@ pub enum Error {
     },
 }
 
+impl Error {
+    pub fn malformed(path: impl AsRef<Path>, desc: &str) -> Self {
+        Self::Malformed {
+            path: path.as_ref().into(),
+            desc: desc.into(),
+        }
+    }
+}
+
 /// Import this trait to add an extension methods to convert a [`std::io::Result`] into a
 /// [`wad::Result`].
 pub trait ResultExt<T> {

@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::fmt;
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use std::{fmt, io};
 
 use byteorder::{LittleEndian, ReadBytesExt};
+use lazy_static::lazy_static;
+use regex::Regex;
 
 use super::wad::{self, Lump, ResultExt};
 
@@ -60,6 +62,10 @@ impl fmt::Display for LumpLocation {
     }
 }
 
+lazy_static! {
+    static ref LUMP_NAME_REGEX: Regex = Regex::new(r"^[A-Z0-9\[\]\-_\\]+$").unwrap();
+}
+
 impl WadFile {
     /// Reads a WAD file from disk.
     pub fn open(path: impl AsRef<Path>) -> wad::Result<Self> {
@@ -67,40 +73,44 @@ impl WadFile {
     }
 
     fn open_impl(path: &Path) -> wad::Result<Self> {
-        let result: io::Result<Self> = (|| {
-            let file = File::open(path)?;
-            let mut file = BufReader::new(file);
+        let file = File::open(path).err_path(path)?;
+        let mut file = BufReader::new(file);
 
-            let Header {
-                kind,
-                lump_count,
-                directory_offset,
-            } = Self::read_header(&mut file)?;
+        let Header {
+            kind,
+            lump_count,
+            directory_offset,
+        } = Self::read_header(path, &mut file)?;
 
-            let Directory { lump_locations } =
-                Self::read_directory(&mut file, lump_count, directory_offset)?;
+        let Directory { lump_locations } =
+            Self::read_directory(path, &mut file, lump_count, directory_offset)?;
 
-            let mut wad_file = WadFile {
-                path: path.into(),
-                kind,
-                lumps: Vec::new(),
-                lump_indices: HashMap::new(),
-            };
-            wad_file.build_indices(&lump_locations);
-            wad_file.read_lumps(&mut file, lump_locations)?;
+        let mut wad_file = WadFile {
+            path: path.into(),
+            kind,
+            lumps: Vec::new(),
+            lump_indices: HashMap::new(),
+        };
+        wad_file.build_indices(&lump_locations);
+        wad_file.read_lumps(path, &mut file, lump_locations)?;
 
-            Ok(wad_file)
-        })();
-
-        result.err_path(path)
+        Ok(wad_file)
     }
 
-    fn read_header(mut file: impl Read + Seek) -> io::Result<Header> {
-        file.seek(SeekFrom::Start(0))?;
+    fn read_header(path: &Path, mut file: impl Read + Seek) -> wad::Result<Header> {
+        file.seek(SeekFrom::Start(0)).err_path(path)?;
 
-        let kind = Self::read_kind(&mut file)?;
-        let lump_count: usize = file.read_u32::<LittleEndian>()?.try_into().unwrap();
-        let directory_offset: u64 = file.read_u32::<LittleEndian>()?.try_into().unwrap();
+        let kind = Self::read_kind(path, &mut file)?;
+        let lump_count: usize = file
+            .read_u32::<LittleEndian>()
+            .err_path(path)?
+            .try_into()
+            .unwrap();
+        let directory_offset: u64 = file
+            .read_u32::<LittleEndian>()
+            .err_path(path)?
+            .try_into()
+            .unwrap();
 
         Ok(Header {
             kind,
@@ -109,37 +119,50 @@ impl WadFile {
         })
     }
 
-    fn read_kind(file: impl Read) -> io::Result<WadKind> {
+    fn read_kind(path: &Path, file: impl Read) -> wad::Result<WadKind> {
         let mut buffer = Vec::new();
-        file.take(4).read_to_end(&mut buffer)?;
+        file.take(4).read_to_end(&mut buffer).err_path(path)?;
 
         match &buffer[..] {
             b"IWAD" => Ok(WadKind::Iwad),
             b"PWAD" => Ok(WadKind::Pwad),
-            _ => Err(io::Error::new(io::ErrorKind::InvalidData, "not a WAD file")),
+            _ => Err(wad::Error::malformed(path, "not a WAD file")),
         }
     }
 
     fn read_directory(
+        path: &Path,
         mut file: impl Read + Seek,
         lump_count: usize,
         offset: u64,
-    ) -> io::Result<Directory> {
-        file.seek(SeekFrom::Start(offset.into()))?;
+    ) -> wad::Result<Directory> {
+        file.seek(SeekFrom::Start(offset.into())).err_path(path)?;
 
         // The WAD is untrusted so clamp how much memory is pre-allocated. For comparison,
         // `doom.wad` has 1,264 lumps and `doom2.wad` has 2,919.
         let mut lump_locations = Vec::with_capacity(lump_count.clamp(0, 4096));
 
         for _ in 0..lump_count {
-            let offset: u64 = file.read_u32::<LittleEndian>()?.into();
-            let size: usize = file.read_u32::<LittleEndian>()?.try_into().unwrap();
+            let offset: u64 = file.read_u32::<LittleEndian>().err_path(path)?.into();
+            let size: usize = file
+                .read_u32::<LittleEndian>()
+                .err_path(path)?
+                .try_into()
+                .unwrap();
             let mut name = [0u8; 8];
-            file.read_exact(&mut name)?;
+            file.read_exact(&mut name).err_path(path)?;
+
             let name = std::str::from_utf8(&name)
-                .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?
+                .map_err(|err| wad::Error::malformed(path, &err.to_string()))?
                 .trim_end_matches('\0')
                 .to_string();
+
+            if !LUMP_NAME_REGEX.is_match(&name) {
+                return Err(wad::Error::malformed(
+                    path,
+                    &format!("illegal lump name {:?}", name),
+                ));
+            }
 
             lump_locations.push(LumpLocation { offset, size, name });
         }
@@ -158,9 +181,10 @@ impl WadFile {
 
     fn read_lumps(
         &mut self,
+        path: &Path,
         mut file: impl Read + Seek,
         locations: Vec<LumpLocation>,
-    ) -> io::Result<()> {
+    ) -> wad::Result<()> {
         for location in locations {
             let LumpLocation { offset, size, name } = location;
 
@@ -168,15 +192,16 @@ impl WadFile {
             // `doom.wad` has a 68,168 byte `WIMAP0`, and `killer.wad` has a 95,1000 `SIDEDEFS`.
             let mut data = Vec::with_capacity(size.clamp(0, 65_536));
 
-            file.seek(SeekFrom::Start(offset.into()))?;
+            file.seek(SeekFrom::Start(offset.into())).err_path(path)?;
             file.by_ref()
                 .take(size.try_into().unwrap())
-                .read_to_end(&mut data)?;
+                .read_to_end(&mut data)
+                .err_path(path)?;
 
             if data.len() < size {
-                return Err(io::Error::new(
-                    io::ErrorKind::UnexpectedEof,
-                    format!("{} larger than file", LumpLocation { offset, size, name }),
+                return Err(wad::Error::malformed(
+                    path,
+                    &format!("{} outside of file", LumpLocation { offset, size, name }),
                 ));
             }
             assert!(data.len() == size);

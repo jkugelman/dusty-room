@@ -183,8 +183,6 @@ impl Wad {
 
 #[cfg(test)]
 mod tests {
-    use std::io;
-
     use super::*;
     use crate::test::*;
 
@@ -192,7 +190,7 @@ mod tests {
     fn not_a_wad() {
         assert_matches!(
             Wad::open("test/killer.txt"),
-            Err(wad::Error::Io { source: err, ..}) if err.kind() == io::ErrorKind::InvalidData
+            Err(wad::Error::Malformed { .. })
         );
     }
 
