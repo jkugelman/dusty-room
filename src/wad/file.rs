@@ -324,7 +324,7 @@ impl WadFile {
         Ok(LumpRef {
             file: self,
             name: &location.name,
-            data: &self.raw[location.offset..location.offset + location.size],
+            data: &self.raw[location.offset..][..location.size],
         })
     }
 
