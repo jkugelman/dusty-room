@@ -6,7 +6,7 @@ use crate::wad::{self, Wad};
 /// Holds all of the assets loaded from a [`Wad`]: maps, sprites, textures, sounds, etc.
 #[derive(Debug)]
 pub struct Assets<'wad> {
-    _palette_bank: PaletteBank,
+    _palette_bank: PaletteBank<'wad>,
     _flat_bank: FlatBank<'wad>,
     _texture_bank: TextureBank,
 }
