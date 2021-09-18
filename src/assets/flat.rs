@@ -2,27 +2,25 @@ use std::collections::{btree_map, BTreeMap};
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 
-use crate::assets::image::Image;
-use crate::assets::map;
+use ndarray::ArrayView2;
+
 use crate::wad::{self, LumpRef, Wad};
 
 /// A list of floor and ceiling textures, indexed by name.
 #[derive(Clone)]
-pub struct FlatBank {
-    flats: BTreeMap<String, Flat>,
-}
+pub struct FlatBank<'wad>(BTreeMap<&'wad str, Flat<'wad>>);
 
-impl fmt::Debug for FlatBank {
+impl fmt::Debug for FlatBank<'_> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{:?}", self.flats.values())
+        write!(fmt, "{:?}", self.0.values())
     }
 }
 
-impl FlatBank {
+impl<'wad> FlatBank<'wad> {
     /// Loads all the flats from a [`Wad`].
     ///
     /// Flats are found between the `F_START` and `F_END` marker lumps.
-    pub fn load(wad: &Wad) -> wad::Result<Self> {
+    pub fn load(wad: &'wad Wad) -> wad::Result<Self> {
         let lumps = wad.lumps_between("F_START", "F_END")?;
         let mut flats = BTreeMap::new();
 
@@ -32,52 +30,52 @@ impl FlatBank {
             }
 
             let flat = Flat::load(lump)?;
-            let existing = flats.insert(flat.name.clone(), flat);
+            let existing = flats.insert(flat.name, flat);
 
             if let Some(_) = existing {
                 return Err(lump.error(&format!("duplicate flat {}", lump.name())));
             }
         }
 
-        Ok(FlatBank { flats })
+        Ok(FlatBank(flats))
     }
 }
 
-impl Deref for FlatBank {
-    type Target = BTreeMap<String, Flat>;
+impl<'wad> Deref for FlatBank<'wad> {
+    type Target = BTreeMap<&'wad str, Flat<'wad>>;
 
     fn deref(&self) -> &Self::Target {
-        &self.flats
+        &self.0
     }
 }
 
-impl DerefMut for FlatBank {
+impl DerefMut for FlatBank<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.flats
+        &mut self.0
     }
 }
 
-impl IntoIterator for FlatBank {
-    type Item = (String, Flat);
-    type IntoIter = btree_map::IntoIter<String, Flat>;
+impl<'wad> IntoIterator for FlatBank<'wad> {
+    type Item = (&'wad str, Flat<'wad>);
+    type IntoIter = btree_map::IntoIter<&'wad str, Flat<'wad>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.flats.into_iter()
+        self.0.into_iter()
     }
 }
 
-impl<'a> IntoIterator for &'a FlatBank {
-    type Item = (&'a String, &'a Flat);
-    type IntoIter = btree_map::Iter<'a, String, Flat>;
+impl<'a, 'wad> IntoIterator for &'a FlatBank<'wad> {
+    type Item = (&'a &'wad str, &'a Flat<'wad>);
+    type IntoIter = btree_map::Iter<'a, &'wad str, Flat<'wad>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
-impl<'a> IntoIterator for &'a mut FlatBank {
-    type Item = (&'a String, &'a mut Flat);
-    type IntoIter = btree_map::IterMut<'a, String, Flat>;
+impl<'a, 'wad> IntoIterator for &'a mut FlatBank<'wad> {
+    type Item = (&'a &'wad str, &'a mut Flat<'wad>);
+    type IntoIter = btree_map::IterMut<'a, &'wad str, Flat<'wad>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
@@ -86,49 +84,42 @@ impl<'a> IntoIterator for &'a mut FlatBank {
 
 /// A floor or ceiling texture.
 #[derive(Clone)]
-pub struct Flat {
-    name: String,
-    image: Image,
+pub struct Flat<'wad> {
+    name: &'wad str,
+    pixels: ArrayView2<'wad, u8>,
 }
 
-impl Flat {
+impl<'wad> Flat<'wad> {
     /// Load a flat from a lump.
-    pub fn load(lump: LumpRef) -> wad::Result<Self> {
-        let name = lump.name().to_owned();
-        let buffer = lump.expect_size(64 * 64)?.data().to_vec();
-        let image = Image::from_raw(64, 64, buffer).unwrap();
+    pub fn load(lump: LumpRef<'wad>) -> wad::Result<Self> {
+        let lump = lump.expect_size(64 * 64)?;
 
-        Ok(Flat { name, image })
+        Ok(Self {
+            name: lump.name(),
+            pixels: ArrayView2::from_shape(Self::shape(), lump.data()).unwrap(),
+        })
     }
 
     /// Flat name, the name of its [lump].
     ///
     /// [lump]: wad::LumpRef
     pub fn name(&self) -> &str {
-        &self.name
+        self.name
     }
 
-    /// The physical size of a flat in map space. Flats are always 64x64.
-    pub const fn size() -> map::Size2D {
-        map::Size2D::new(64, 64)
-    }
-}
-
-impl Deref for Flat {
-    type Target = Image;
-
-    fn deref(&self) -> &Self::Target {
-        &self.image
+    /// Flats are always 64x64 pixels.
+    pub const fn shape() -> (usize, usize) {
+        (64, 64)
     }
 }
 
-impl fmt::Debug for Flat {
+impl fmt::Debug for Flat<'_> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.name)
     }
 }
 
-impl fmt::Display for Flat {
+impl fmt::Display for Flat<'_> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.name)
     }

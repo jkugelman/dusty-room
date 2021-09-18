@@ -14,19 +14,19 @@ pub struct LumpRef<'wad> {
     pub(super) data: &'wad [u8],
 }
 
-impl LumpRef<'_> {
+impl<'wad> LumpRef<'wad> {
     /// The path of the file containing the lump.
-    pub fn file(&self) -> &Path {
+    pub fn file(&self) -> &'wad Path {
         self.file.path()
     }
 
     /// The lump name, for example `VERTEXES` or `THINGS`.
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &'wad str {
         self.name
     }
 
     /// The lump data, a binary blob.
-    pub fn data(&self) -> &[u8] {
+    pub fn data(&self) -> &'wad [u8] {
         &self.data
     }
 
