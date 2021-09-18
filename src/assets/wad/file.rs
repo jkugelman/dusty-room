@@ -1,3 +1,4 @@
+use core::slice::SlicePattern;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
@@ -321,13 +322,12 @@ impl WadFile {
     /// Reads a lump from the raw data, pulling out a slice.
     fn read_lump(&self, index: usize) -> wad::Result<LumpRef> {
         let location = &self.lump_locations[index];
-        let LumpLocation { offset, size, .. } = *location;
 
-        let file = self;
-        let name = &location.name;
-        let data = &self.raw[offset..offset + size];
-
-        Ok(LumpRef { file, name, data })
+        Ok(LumpRef {
+            file: self,
+            name: &location.name,
+            data: &self.raw[location.offset..location.offset + location.size],
+        })
     }
 
     /// Reads one or more lumps from the raw data, pulling out slices.
