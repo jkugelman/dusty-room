@@ -3,23 +3,24 @@ use std::convert::TryInto;
 
 use std::fmt;
 use std::fs::File;
-use std::io::{BufReader, Read, Seek, SeekFrom};
+use std::io::Read;
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 
-use byteorder::{LittleEndian, ReadBytesExt};
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use super::wad::{self, Lump, ResultExt};
+use super::wad::{self, ResultExt};
+use super::{LumpRef, LumpRefs};
 
 /// A single IWAD or PWAD file stored in a [`Wad`] stack.
 ///
 /// [`Wad`]: crate::wad::Wad
-#[derive(Debug)]
 pub(super) struct WadFile {
     path: PathBuf,
+    raw: Vec<u8>,
     kind: WadKind,
-    lumps: Vec<Lump>,
+    lump_locations: Vec<LumpLocation>,
     lump_indices: HashMap<String, Vec<usize>>,
 }
 
@@ -27,7 +28,7 @@ pub(super) struct WadFile {
 struct Header {
     pub kind: WadKind,
     pub lump_count: usize,
-    pub directory_offset: u64,
+    pub directory_offset: usize,
 }
 
 /// WAD files can be either IWADs or PWADs.
@@ -44,23 +45,14 @@ pub enum WadKind {
 #[derive(Debug)]
 struct Directory {
     pub lump_locations: Vec<LumpLocation>,
+    pub lump_indices: HashMap<String, Vec<usize>>,
 }
 
 #[derive(Debug)]
 struct LumpLocation {
-    pub offset: u64,
+    pub offset: usize,
     pub size: usize,
     pub name: String,
-}
-
-impl fmt::Display for LumpLocation {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            fmt,
-            "{} (offset {}, size {})",
-            self.name, self.offset, self.size
-        )
-    }
 }
 
 lazy_static! {
@@ -74,36 +66,47 @@ impl WadFile {
     }
 
     fn open_impl(path: &Path) -> wad::Result<Self> {
-        let file = File::open(path).err_path(path)?;
-        let mut file = BufReader::new(file);
+        let mut file = File::open(path).err_path(path)?;
+        let mut raw = Vec::new();
+        file.read_to_end(&mut raw).err_path(path)?;
+        raw.shrink_to_fit();
+        drop(file);
 
-        let Header {
-            kind,
-            lump_count,
-            directory_offset,
-        } = Self::read_header(path, &mut file)?;
+        // Use an IIFE to so we can use `?` and convert any `String` error messages into
+        // `wad::Error`s.
+        (|| {
+            let Header {
+                kind,
+                lump_count,
+                directory_offset,
+            } = Self::read_header(&raw)?;
 
-        let Directory { lump_locations } =
-            Self::read_directory(path, &mut file, lump_count, directory_offset)?;
+            let Directory {
+                lump_locations,
+                lump_indices,
+            } = Self::read_directory(&raw, lump_count, directory_offset)?;
 
-        let mut wad_file = WadFile {
-            path: path.to_owned(),
-            kind,
-            lumps: Vec::new(),
-            lump_indices: HashMap::new(),
-        };
-        wad_file.build_indices(&lump_locations);
-        wad_file.read_lumps(path, &mut file, lump_locations)?;
-
-        Ok(wad_file)
+            Ok(Self {
+                path: path.to_owned(),
+                raw,
+                kind,
+                lump_locations,
+                lump_indices,
+            })
+        })()
+        .map_err(|desc: String| wad::Error::malformed(path, &desc))
     }
 
-    fn read_header(path: &Path, mut file: impl Read + Seek) -> wad::Result<Header> {
-        file.seek(SeekFrom::Start(0)).err_path(path)?;
+    fn read_header(raw: &[u8]) -> Result<Header, String> {
+        let raw = raw.get(0..12).ok_or_else(|| format!("not a WAD file"))?;
 
-        let kind = Self::read_kind(path, &mut file)?;
-        let lump_count = file.read_u32::<LittleEndian>().err_path(path)?;
-        let directory_offset = file.read_u32::<LittleEndian>().err_path(path)?;
+        let kind = match &raw[0..4] {
+            b"IWAD" => WadKind::Iwad,
+            b"PWAD" => WadKind::Pwad,
+            _ => return Err(format!("not a WAD file")),
+        };
+        let lump_count = u32::from_le_bytes(raw[4..8].try_into().unwrap());
+        let directory_offset = u32::from_le_bytes(raw[8..12].try_into().unwrap());
 
         Ok(Header {
             kind,
@@ -112,34 +115,30 @@ impl WadFile {
         })
     }
 
-    fn read_kind(path: &Path, file: impl Read) -> wad::Result<WadKind> {
-        let mut buffer = Vec::new();
-        file.take(4).read_to_end(&mut buffer).err_path(path)?;
-
-        match &buffer[..] {
-            b"IWAD" => Ok(WadKind::Iwad),
-            b"PWAD" => Ok(WadKind::Pwad),
-            _ => Err(wad::Error::malformed(path, "not a WAD file")),
-        }
-    }
-
     fn read_directory(
-        path: &Path,
-        mut file: impl Read + Seek,
+        raw: &[u8],
         lump_count: usize,
-        offset: u64,
-    ) -> wad::Result<Directory> {
-        file.seek(SeekFrom::Start(offset.into())).err_path(path)?;
+        directory_offset: usize,
+    ) -> Result<Directory, String> {
+        let mut cursor = raw
+            .get(directory_offset..)
+            .ok_or_else(|| format!("lump directory at illegal offset {}", directory_offset))?;
 
         // The WAD is untrusted so clamp how much memory is pre-allocated. For comparison,
         // `doom.wad` has 1,264 lumps and `doom2.wad` has 2,919.
         let mut lump_locations = Vec::with_capacity(lump_count.clamp(0, 4096));
 
         for _ in 0..lump_count {
-            let offset = file.read_u32::<LittleEndian>().err_path(path)?;
-            let size = file.read_u32::<LittleEndian>().err_path(path)?;
-            let mut name = [0u8; 8];
-            file.read_exact(&mut name).err_path(path)?;
+            let entry = &cursor
+                .get(0..16)
+                .ok_or_else(|| format!("lump directory has illegal count {}", lump_count))?;
+
+            let offset = u32::from_le_bytes(entry[0..4].try_into().unwrap());
+            let size = u32::from_le_bytes(entry[4..8].try_into().unwrap());
+            let name: [u8; 8] = entry[8..16].try_into().unwrap();
+
+            // Advance the read cursor.
+            cursor = &cursor[16..];
 
             // Strip trailing NULs and convert into a `String`. Stay away from `str::from_utf8` so
             // we don't have to deal with UTF-8 decoding errors.
@@ -152,62 +151,37 @@ impl WadFile {
             // Verify that the lump name is all uppercase, digits, and a handful of acceptable
             // symbols.
             if !LUMP_NAME_REGEX.is_match(&name) {
-                return Err(wad::Error::malformed(
-                    path,
-                    &format!("illegal lump name {:?}", name),
-                ));
+                return Err(format!("illegal lump name {:?}", name));
             }
 
-            lump_locations.push(LumpLocation {
-                offset: offset.into(),
-                size: size.try_into().unwrap(),
-                name,
-            });
+            // Check lump bounds now so we don't have to later.
+            let offset: usize = offset.try_into().unwrap();
+            let size: usize = size.try_into().unwrap();
+
+            if offset >= raw.len() {
+                return Err(format!("{} at illegal offset {}", name, offset));
+            }
+            if offset + size >= raw.len() {
+                return Err(format!("{} has illegal size {}", name, size));
+            }
+
+            lump_locations.push(LumpLocation { offset, size, name });
         }
 
-        Ok(Directory { lump_locations })
-    }
+        // Build a map of lump names -> indices for fast lookup.
+        let mut lump_indices = HashMap::new();
 
-    fn build_indices(&mut self, locations: &[LumpLocation]) {
-        for (index, location) in locations.iter().enumerate() {
-            self.lump_indices
+        for (index, location) in lump_locations.iter().enumerate() {
+            lump_indices
                 .entry(location.name.clone())
                 .and_modify(|indices: &mut Vec<usize>| indices.push(index))
                 .or_insert(vec![index]);
         }
-    }
 
-    fn read_lumps(
-        &mut self,
-        path: &Path,
-        mut file: impl Read + Seek,
-        locations: Vec<LumpLocation>,
-    ) -> wad::Result<()> {
-        for location in locations {
-            let LumpLocation { offset, size, name } = location;
-
-            // The WAD is untrusted so clamp how much memory is pre-allocated. For comparison,
-            // `doom.wad` has a 68,168 byte `WIMAP0`, and `killer.wad` has a 95,1000 `SIDEDEFS`.
-            let mut data = Vec::with_capacity(size.clamp(0, 65_536));
-
-            file.seek(SeekFrom::Start(offset.into())).err_path(path)?;
-            file.by_ref()
-                .take(size.try_into().unwrap())
-                .read_to_end(&mut data)
-                .err_path(path)?;
-
-            if data.len() < size {
-                return Err(wad::Error::malformed(
-                    path,
-                    &format!("{} outside of file", LumpLocation { offset, size, name }),
-                ));
-            }
-            assert!(data.len() == size);
-
-            self.lumps.push(Lump { name, data });
-        }
-
-        Ok(())
+        Ok(Directory {
+            lump_locations,
+            lump_indices,
+        })
     }
 
     /// The file's path on disk.
@@ -235,7 +209,7 @@ impl WadFile {
     /// Retrieves a unique lump by name.
     ///
     /// It is an error if the lump is missing.
-    pub fn lump(&self, name: &str) -> wad::Result<&Lump> {
+    pub fn lump(&self, name: &str) -> wad::Result<LumpRef> {
         self.try_lump(name)?
             .ok_or_else(|| self.error(&format!("{} missing", name)))
     }
@@ -243,14 +217,14 @@ impl WadFile {
     /// Retrieves a unique lump by name.
     ///
     /// Returns `Ok(None)` if the lump is missing.
-    pub fn try_lump(&self, name: &str) -> wad::Result<Option<&Lump>> {
+    pub fn try_lump(&self, name: &str) -> wad::Result<Option<LumpRef>> {
         let index = self.try_lump_index(name)?;
         if index.is_none() {
             return Ok(None);
         }
         let index = index.unwrap();
 
-        Ok(Some(&self.lumps[index]))
+        Ok(Some(self.read_lump(index)?))
     }
 
     /// Retrieves a block of `size > 0` lumps following a unique named marker. The marker lump is
@@ -261,7 +235,7 @@ impl WadFile {
     /// # Panics
     ///
     /// Panics if `size == 0`.
-    pub fn lumps_following(&self, start: &str, size: usize) -> wad::Result<&[Lump]> {
+    pub fn lumps_following(&self, start: &str, size: usize) -> wad::Result<LumpRefs> {
         self.try_lumps_following(start, size)?
             .ok_or_else(|| self.error(&format!("{} missing", start)))
     }
@@ -274,7 +248,7 @@ impl WadFile {
     /// # Panics
     ///
     /// Panics if `size == 0`.
-    pub fn try_lumps_following(&self, start: &str, size: usize) -> wad::Result<Option<&[Lump]>> {
+    pub fn try_lumps_following(&self, start: &str, size: usize) -> wad::Result<Option<LumpRefs>> {
         assert!(size > 0);
 
         let start_index = self.try_lump_index(start)?;
@@ -283,18 +257,18 @@ impl WadFile {
         }
         let start_index = start_index.unwrap();
 
-        if start_index + size >= self.lumps.len() {
+        if start_index + size >= self.lump_indices.len() {
             return Err(self.error(&format!("{} missing lumps", start)));
         }
 
-        Ok(Some(&self.lumps[start_index..start_index + size]))
+        Ok(Some(self.read_lumps(start_index..start_index + size)?))
     }
 
     /// Retrieves a block of lumps between unique start and end markers. The marker lumps are
     /// included in the result.
     ///
     /// It is an error if the block is missing.
-    pub fn lumps_between(&self, start: &str, end: &str) -> wad::Result<&[Lump]> {
+    pub fn lumps_between(&self, start: &str, end: &str) -> wad::Result<LumpRefs> {
         self.try_lumps_between(start, end)?
             .ok_or_else(|| self.error(&format!("{} and {} missing", start, end)))
     }
@@ -303,7 +277,7 @@ impl WadFile {
     /// included in the result.
     ///
     /// Returns `Ok(None)` if the block is missing.
-    pub fn try_lumps_between(&self, start: &str, end: &str) -> wad::Result<Option<&[Lump]>> {
+    pub fn try_lumps_between(&self, start: &str, end: &str) -> wad::Result<Option<LumpRefs>> {
         let start_index = self.try_lump_index(start)?;
         let end_index = self.try_lump_index(end)?;
 
@@ -330,7 +304,7 @@ impl WadFile {
             return Err(self.error(&format!("{} after {}", start, end)));
         }
 
-        Ok(Some(&self.lumps[start_index..end_index + 1]))
+        Ok(Some(self.read_lumps(start_index..end_index + 1)?))
     }
 
     /// Looks up a lump's index. It's an error if the lump isn't unique.
@@ -344,9 +318,44 @@ impl WadFile {
         }
     }
 
+    /// Reads a lump from the raw data, pulling out a slice.
+    fn read_lump(&self, index: usize) -> wad::Result<LumpRef> {
+        let location = &self.lump_locations[index];
+        let LumpLocation { offset, size, .. } = *location;
+
+        let file = self;
+        let name = &location.name;
+        let data = &self.raw[offset..offset + size];
+
+        Ok(LumpRef { file, name, data })
+    }
+
+    /// Reads one or more lumps from the raw data, pulling out slices.
+    fn read_lumps(&self, indices: Range<usize>) -> wad::Result<LumpRefs> {
+        assert!(!indices.is_empty());
+
+        let lumps: Vec<LumpRef> = indices
+            .map(|index| self.read_lump(index))
+            .collect::<wad::Result<_>>()?;
+
+        Ok(LumpRefs::new(lumps))
+    }
+
     /// Creates a [`wad::Error::Malformed`] blaming this file.
     pub fn error(&self, desc: &str) -> wad::Error {
         wad::Error::malformed(&self.path, desc)
+    }
+}
+
+impl fmt::Debug for WadFile {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("WadFile")
+            .field("path", &self.path)
+            .field("raw", &format!("<{} bytes>", self.raw.len()))
+            .field("kind", &self.kind)
+            .field("lump_locations", &self.lump_locations)
+            .field("lump_indices", &self.lump_indices)
+            .finish()
     }
 }
 

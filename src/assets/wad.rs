@@ -147,37 +147,31 @@ impl Wad {
         self.try_lookup(|file| file.try_lumps_between(start, end))
     }
 
-    fn lookup<'wad, T, U>(
+    fn lookup<'wad, T>(
         &'wad self,
         try_lookup: impl Fn(&'wad WadFile) -> wad::Result<Option<T>>,
         lookup: impl FnOnce(&'wad WadFile) -> wad::Result<T>,
-    ) -> wad::Result<U>
-    where
-        T: FromFile<'wad, Out = U>,
-    {
+    ) -> wad::Result<T> {
         for patch in self.patches.iter().rev() {
             if let Some(value) = try_lookup(patch)? {
-                return Ok(value.from_file(patch));
+                return Ok(value);
             }
         }
 
-        Ok(lookup(&self.initial)?.from_file(&self.initial))
+        Ok(lookup(&self.initial)?)
     }
 
-    fn try_lookup<'wad, T, U>(
+    fn try_lookup<'wad, T>(
         &'wad self,
         try_lookup: impl Fn(&'wad WadFile) -> wad::Result<Option<T>>,
-    ) -> wad::Result<Option<U>>
-    where
-        T: FromFile<'wad, Out = U>,
-    {
+    ) -> wad::Result<Option<T>> {
         for patch in self.patches.iter().rev() {
             if let Some(value) = try_lookup(patch)? {
-                return Ok(Some(value.from_file(&patch)));
+                return Ok(Some(value));
             }
         }
 
-        Ok(try_lookup(&self.initial)?.map(|t| t.from_file(&self.initial)))
+        Ok(try_lookup(&self.initial)?)
     }
 }
 

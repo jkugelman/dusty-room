@@ -4,35 +4,14 @@ use std::{fmt, slice, vec};
 
 use super::wad::{self, WadFile};
 
-/// A named lump of data from a [`WadFile`].
-///
-/// This type is not publicly visible. [`Wad`]'s public interface hides `Lump`s behind [`LumpRef`]s.
-#[derive(Clone)]
-pub(super) struct Lump {
-    pub name: String,
-    pub data: Vec<u8>,
-}
-
-impl fmt::Debug for Lump {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{} ({} bytes)", self.name, self.data.len())
-    }
-}
-
-impl fmt::Display for Lump {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.name)
-    }
-}
-
 /// A reference to a lump of data in a [`Wad`] file.
 ///
 /// [`Wad`]: crate::wad::Wad
 #[derive(Clone, Copy)]
 pub struct LumpRef<'wad> {
-    file: &'wad WadFile,
-    name: &'wad str,
-    data: &'wad [u8],
+    pub(super) file: &'wad WadFile,
+    pub(super) name: &'wad str,
+    pub(super) data: &'wad [u8],
 }
 
 impl LumpRef<'_> {
@@ -119,14 +98,12 @@ impl<'a> fmt::Display for LumpRef<'a> {
 ///
 /// Usually the first lump gives the name of the block.
 #[derive(Clone, Debug)]
-pub struct LumpRefs<'a> {
-    lumps: Vec<LumpRef<'a>>,
-}
+pub struct LumpRefs<'a>(Vec<LumpRef<'a>>);
 
 impl<'a> LumpRefs<'a> {
-    fn new(lumps: Vec<LumpRef<'a>>) -> Self {
+    pub(super) fn new(lumps: Vec<LumpRef<'a>>) -> Self {
         assert!(lumps.len() > 0);
-        Self { lumps }
+        Self(lumps)
     }
 
     /// The path of the file containing the lumps.
@@ -135,7 +112,7 @@ impl<'a> LumpRefs<'a> {
     ///
     /// Panics if the block is empty.
     pub fn file(&self) -> &Path {
-        self.lumps.first().expect("empty lump block").file()
+        self.0.first().expect("empty lump block").file()
     }
 
     /// The name of the block, the name of the first lump.
@@ -144,7 +121,7 @@ impl<'a> LumpRefs<'a> {
     ///
     /// Panics if the block is empty.
     pub fn name(&self) -> &str {
-        self.lumps.first().expect("empty lump block").name()
+        self.0.first().expect("empty lump block").name()
     }
 
     /// Gets the lump at `index` and checks that it has the expected name.
@@ -158,11 +135,7 @@ impl<'a> LumpRefs<'a> {
 
     /// Creates a [`wad::Error::Malformed`] blaming this block.
     pub fn error(&self, desc: &str) -> wad::Error {
-        self.lumps
-            .first()
-            .expect("empty lump block")
-            .file
-            .error(desc)
+        self.0.first().expect("empty lump block").file.error(desc)
     }
 }
 
@@ -170,13 +143,13 @@ impl<'a> Deref for LumpRefs<'a> {
     type Target = Vec<LumpRef<'a>>;
 
     fn deref(&self) -> &Self::Target {
-        &self.lumps
+        &self.0
     }
 }
 
 impl<'a> DerefMut for LumpRefs<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.lumps
+        &mut self.0
     }
 }
 
@@ -185,7 +158,7 @@ impl<'a> IntoIterator for LumpRefs<'a> {
     type IntoIter = vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.lumps.into_iter()
+        self.0.into_iter()
     }
 }
 
@@ -204,45 +177,5 @@ impl<'a, 'b> IntoIterator for &'a mut LumpRefs<'b> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
-    }
-}
-
-/// This trait helps [`lookup`] and [`try_lookup`] annotate a lump or block of lumps with the path
-/// of the file that contains them.
-///
-/// [`lookup`]: Wad::lookup
-/// [`try_lookup`]: Wad::try_lookup
-pub(super) trait FromFile<'file> {
-    type Out;
-    fn from_file(self, file: &'file WadFile) -> Self::Out;
-}
-
-/// Convert a `&Lump` into a `LumpRef` with the path of the file containing the lump.
-impl<'file> FromFile<'file> for &'file Lump {
-    type Out = LumpRef<'file>;
-
-    fn from_file(self, file: &'file WadFile) -> LumpRef {
-        LumpRef {
-            file,
-            name: &self.name,
-            data: &self.data,
-        }
-    }
-}
-
-/// Convert a `&[Lump]` into a `Vec<LumpRef>` with the path of the file containing the lumps.
-impl<'file> FromFile<'file> for &'file [Lump] {
-    type Out = LumpRefs<'file>;
-
-    fn from_file(self, file: &'file WadFile) -> LumpRefs<'file> {
-        LumpRefs::new(
-            self.iter()
-                .map(|lump| LumpRef {
-                    file,
-                    name: &lump.name,
-                    data: &lump.data,
-                })
-                .collect(),
-        )
     }
 }
