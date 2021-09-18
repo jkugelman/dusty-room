@@ -1,4 +1,3 @@
-use core::slice::SlicePattern;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
@@ -11,8 +10,7 @@ use std::path::{Path, PathBuf};
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use super::wad::{self, ResultExt};
-use super::{LumpRef, LumpRefs};
+use crate::wad::{self, LumpRef, LumpRefs, ResultExt};
 
 /// A single IWAD or PWAD file stored in a [`Wad`] stack.
 ///

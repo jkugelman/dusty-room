@@ -1,7 +1,5 @@
 pub mod assets;
-
-#[cfg(test)]
-pub(crate) mod test;
+pub mod wad;
 
 #[cfg(test)]
 #[macro_use]

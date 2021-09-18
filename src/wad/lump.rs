@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 use std::path::Path;
 use std::{fmt, slice, vec};
 
-use super::wad::{self, WadFile};
+use crate::wad::{self, WadFile};
 
 /// A reference to a lump of data in a [`Wad`] file.
 ///

@@ -5,9 +5,8 @@ use std::ops::Deref;
 
 use image::{Rgb, RgbaImage};
 
-use crate::assets::wad::{self, Wad};
-
-use super::image::Image;
+use crate::assets::image::Image;
+use crate::wad::{self, Wad};
 
 /// A bank of color palettes loaded from the `PLAYPAL` lump.
 ///
@@ -133,7 +132,7 @@ impl ToRgba for Image {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test::*;
+    use crate::wad::test::*;
 
     #[test]
     fn load() {

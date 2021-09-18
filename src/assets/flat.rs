@@ -2,9 +2,9 @@ use std::collections::{btree_map, BTreeMap};
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 
-use super::image::Image;
-use super::map;
-use super::wad::{self, LumpRef, Wad};
+use crate::assets::image::Image;
+use crate::assets::map;
+use crate::wad::{self, LumpRef, Wad};
 
 /// A list of floor and ceiling textures, indexed by name.
 #[derive(Clone)]
@@ -137,7 +137,7 @@ impl fmt::Display for Flat {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test::*;
+    use crate::wad::test::*;
 
     #[test]
     fn load() {

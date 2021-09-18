@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use super::wad::{self, Wad};
+use crate::wad::{self, Wad};
 
 #[derive(Clone, Debug)]
 pub struct TextureBank {

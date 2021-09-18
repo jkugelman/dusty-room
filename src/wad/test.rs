@@ -1,7 +1,7 @@
-//! Place test assets in a public crate-wide location so tests don't waste time loading the same
+//! Place test WADs in a public crate-wide location so tests don't waste time loading the same
 //! files over and over.
 
-use crate::assets::wad::Wad;
+use crate::wad::Wad;
 
 pub static DOOM_WAD_PATH: &str = "test/doom.wad";
 pub static DOOM2_WAD_PATH: &str = "test/doom2.wad";

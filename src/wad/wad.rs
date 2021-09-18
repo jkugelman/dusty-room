@@ -1,14 +1,6 @@
-pub use error::*;
-pub use file::*;
-pub use lump::*;
-
-mod error;
-mod file;
-mod lump;
-
 use std::{path::Path, sync::Arc};
 
-use super::wad;
+use crate::wad::{self, LumpRef, LumpRefs, WadFile, WadKind};
 
 /// A stack of WAD files layered on top of each other, with later files overlaying earlier ones.
 ///
@@ -178,7 +170,7 @@ impl Wad {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test::*;
+    use crate::wad::test::*;
 
     #[test]
     fn not_a_wad() {
