@@ -12,10 +12,14 @@ use regex::Regex;
 
 use crate::wad::{self, Lump, Lumps, ResultExt};
 
-/// A single IWAD or PWAD file stored in a [`Wad`] stack.
+/// A single IWAD or PWAD file.
+///
+/// This is a lower level type. Code outside the [`wad`] module should mainly use the [`Wad`]
+/// struct, which has a similar interface with the added capability of being able to add patch WADs
+/// on top of the base game WAD.
 ///
 /// [`Wad`]: crate::wad::Wad
-pub(super) struct WadFile {
+pub struct WadFile {
     path: PathBuf,
     raw: Vec<u8>,
     kind: WadKind,
