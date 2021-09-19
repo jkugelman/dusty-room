@@ -5,6 +5,8 @@ use std::convert::TryInto;
 use std::convert::TryFrom;
 use std::fs::File;
 use std::io::Read;
+use std::io::Seek;
+use std::io::SeekFrom;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::{fmt, io};
@@ -68,25 +70,38 @@ impl WadFile {
     /// Loads a WAD file from disk.
     pub fn load(path: impl AsRef<Path>) -> wad::Result<Self> {
         let path = path.as_ref();
-        let raw = Self::read_into_vec(path).err_path(path)?;
+        let file = File::open(path).err_path(path)?;
+        Self::load_reader(path, file)
+    }
+
+    /// Loads a WAD file from a generic reader.
+    ///
+    /// The reader's current position doesn't matter. Reading WAD files requires seeking to
+    /// arbitrary offsets throughout the file.
+    ///
+    /// The `path` only used for display purposes, such as in error messages. It doesn't need to
+    /// point to an actual file on disk.
+    pub fn load_reader(path: impl AsRef<Path>, file: impl Read + Seek) -> wad::Result<Self> {
+        let path = path.as_ref();
+        let raw = Self::read_into_vec(file).err_path(path)?;
         Self::load_raw(path, raw)
     }
 
-    fn read_into_vec(path: &Path) -> io::Result<Vec<u8>> {
-        let mut file = File::open(path)?;
-
+    fn read_into_vec(mut file: impl Read + Seek) -> io::Result<Vec<u8>> {
         // If the file is really large it may not fit into memory. Individual allocations can never
         // exceed `isize::MAX` bytes, which is just 2GB on a 32-bit system.
         //
-        // Ideally we could check if `Vec::with_capacity` fails, but in stable Rust there's no way
-        // to do that. Nightly offers `Vec::try_reserve`, so hope is on the horizon.
-        let size: u64 = file.metadata()?.len();
+        // This won't catch all panics. Ideally we could check if `Vec::with_capacity` fails, but in
+        // stable Rust there's no way to do that. Nightly offers `Vec::try_reserve`, so hope is on
+        // the horizon.
+        let size = file.seek(SeekFrom::End(0))?;
         if isize::try_from(size).is_err() {
             return Err(io::Error::new(io::ErrorKind::OutOfMemory, "file too large"));
         }
         let size: usize = size.try_into().unwrap();
-
         let mut raw = Vec::with_capacity(size);
+
+        file.rewind()?;
         file.read_to_end(&mut raw)?;
 
         Ok(raw)
