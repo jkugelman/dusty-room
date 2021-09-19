@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use crate::wad::{self, LumpRef, LumpRefs, ResultExt};
+use crate::wad::{self, Lump, Lumps, ResultExt};
 
 /// A single IWAD or PWAD file stored in a [`Wad`] stack.
 ///
@@ -208,7 +208,7 @@ impl WadFile {
     /// Retrieves a unique lump by name.
     ///
     /// It is an error if the lump is missing.
-    pub fn lump(&self, name: &str) -> wad::Result<LumpRef> {
+    pub fn lump(&self, name: &str) -> wad::Result<Lump> {
         self.try_lump(name)?
             .ok_or_else(|| self.error(&format!("{} missing", name)))
     }
@@ -216,7 +216,7 @@ impl WadFile {
     /// Retrieves a unique lump by name.
     ///
     /// Returns `Ok(None)` if the lump is missing.
-    pub fn try_lump(&self, name: &str) -> wad::Result<Option<LumpRef>> {
+    pub fn try_lump(&self, name: &str) -> wad::Result<Option<Lump>> {
         let index = self.try_lump_index(name)?;
         if index.is_none() {
             return Ok(None);
@@ -234,7 +234,7 @@ impl WadFile {
     /// # Panics
     ///
     /// Panics if `size == 0`.
-    pub fn lumps_following(&self, start: &str, size: usize) -> wad::Result<LumpRefs> {
+    pub fn lumps_following(&self, start: &str, size: usize) -> wad::Result<Lumps> {
         self.try_lumps_following(start, size)?
             .ok_or_else(|| self.error(&format!("{} missing", start)))
     }
@@ -247,7 +247,7 @@ impl WadFile {
     /// # Panics
     ///
     /// Panics if `size == 0`.
-    pub fn try_lumps_following(&self, start: &str, size: usize) -> wad::Result<Option<LumpRefs>> {
+    pub fn try_lumps_following(&self, start: &str, size: usize) -> wad::Result<Option<Lumps>> {
         assert!(size > 0);
 
         let start_index = self.try_lump_index(start)?;
@@ -267,7 +267,7 @@ impl WadFile {
     /// included in the result.
     ///
     /// It is an error if the block is missing.
-    pub fn lumps_between(&self, start: &str, end: &str) -> wad::Result<LumpRefs> {
+    pub fn lumps_between(&self, start: &str, end: &str) -> wad::Result<Lumps> {
         self.try_lumps_between(start, end)?
             .ok_or_else(|| self.error(&format!("{} and {} missing", start, end)))
     }
@@ -276,7 +276,7 @@ impl WadFile {
     /// included in the result.
     ///
     /// Returns `Ok(None)` if the block is missing.
-    pub fn try_lumps_between(&self, start: &str, end: &str) -> wad::Result<Option<LumpRefs>> {
+    pub fn try_lumps_between(&self, start: &str, end: &str) -> wad::Result<Option<Lumps>> {
         let start_index = self.try_lump_index(start)?;
         let end_index = self.try_lump_index(end)?;
 
@@ -318,10 +318,10 @@ impl WadFile {
     }
 
     /// Reads a lump from the raw data, pulling out a slice.
-    fn read_lump(&self, index: usize) -> wad::Result<LumpRef> {
+    fn read_lump(&self, index: usize) -> wad::Result<Lump> {
         let location = &self.lump_locations[index];
 
-        Ok(LumpRef {
+        Ok(Lump {
             file: self,
             name: &location.name,
             data: &self.raw[location.offset..][..location.size],
@@ -329,14 +329,14 @@ impl WadFile {
     }
 
     /// Reads one or more lumps from the raw data, pulling out slices.
-    fn read_lumps(&self, indices: Range<usize>) -> wad::Result<LumpRefs> {
+    fn read_lumps(&self, indices: Range<usize>) -> wad::Result<Lumps> {
         assert!(!indices.is_empty());
 
-        let lumps: Vec<LumpRef> = indices
+        let lumps: Vec<Lump> = indices
             .map(|index| self.read_lump(index))
             .collect::<wad::Result<_>>()?;
 
-        Ok(LumpRefs::new(lumps))
+        Ok(Lumps::new(lumps))
     }
 
     /// Creates a [`wad::Error::Malformed`] blaming this file.

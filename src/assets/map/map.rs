@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::wad::{self, LumpRef, Wad};
+use crate::wad::{self, Lump, Wad};
 
 pub struct Map {
     name: String,
@@ -39,11 +39,11 @@ impl Map {
         }))
     }
 
-    fn read_things(_lump: LumpRef) {}
-    fn read_vertices(_lump: LumpRef) {}
-    fn read_sectors(_lump: LumpRef) {}
-    fn read_sides(_lump: LumpRef) {}
-    fn read_lines(_lump: LumpRef) {}
+    fn read_things(_lump: Lump) {}
+    fn read_vertices(_lump: Lump) {}
+    fn read_sectors(_lump: Lump) {}
+    fn read_sides(_lump: Lump) {}
+    fn read_lines(_lump: Lump) {}
 }
 
 impl fmt::Debug for Map {

@@ -1,6 +1,6 @@
 use std::{path::Path, sync::Arc};
 
-use crate::wad::{self, LumpRef, LumpRefs, WadFile, WadKind};
+use crate::wad::{self, Lump, Lumps, WadFile, WadKind};
 
 /// A stack of WAD files layered on top of each other, with later files overlaying earlier ones.
 ///
@@ -68,7 +68,7 @@ impl Wad {
     /// Lumps in later files override lumps from earlier ones.
     ///
     /// It is an error if the lump is missing.
-    pub fn lump(&self, name: &str) -> wad::Result<LumpRef<'_>> {
+    pub fn lump(&self, name: &str) -> wad::Result<Lump> {
         self.lookup(|patch| patch.try_lump(name), |initial| initial.lump(name))
     }
 
@@ -77,7 +77,7 @@ impl Wad {
     /// Lumps in later files override lumps from earlier ones.
     ///
     /// Returns `Ok(None)` if the lump is missing.
-    pub fn try_lump(&self, name: &str) -> wad::Result<Option<LumpRef<'_>>> {
+    pub fn try_lump(&self, name: &str) -> wad::Result<Option<Lump>> {
         self.try_lookup(|file| file.try_lump(name))
     }
 
@@ -91,7 +91,7 @@ impl Wad {
     /// # Panics
     ///
     /// Panics if `size == 0`.
-    pub fn lumps_following(&self, start: &str, size: usize) -> wad::Result<LumpRefs<'_>> {
+    pub fn lumps_following(&self, start: &str, size: usize) -> wad::Result<Lumps> {
         self.lookup(
             |patch| patch.try_lumps_following(start, size),
             |initial| initial.lumps_following(start, size),
@@ -108,11 +108,7 @@ impl Wad {
     /// # Panics
     ///
     /// Panics if `size == 0`.
-    pub fn try_lumps_following(
-        &self,
-        start: &str,
-        size: usize,
-    ) -> wad::Result<Option<LumpRefs<'_>>> {
+    pub fn try_lumps_following(&self, start: &str, size: usize) -> wad::Result<Option<Lumps>> {
         self.try_lookup(|file| file.try_lumps_following(start, size))
     }
 
@@ -122,7 +118,7 @@ impl Wad {
     /// Blocks in later wads override entire blocks from earlier files.
     ///
     /// It is an error if the block is missing.
-    pub fn lumps_between(&self, start: &str, end: &str) -> wad::Result<LumpRefs<'_>> {
+    pub fn lumps_between(&self, start: &str, end: &str) -> wad::Result<Lumps> {
         self.lookup(
             |patch| patch.try_lumps_between(start, end),
             |initial| initial.lumps_between(start, end),
@@ -135,7 +131,7 @@ impl Wad {
     /// Blocks in later wads override entire blocks from earlier files.
     ///
     /// Returns `Ok(None)` if the block is missing.
-    pub fn try_lumps_between(&self, start: &str, end: &str) -> wad::Result<Option<LumpRefs<'_>>> {
+    pub fn try_lumps_between(&self, start: &str, end: &str) -> wad::Result<Option<Lumps>> {
         self.try_lookup(|file| file.try_lumps_between(start, end))
     }
 
@@ -211,7 +207,7 @@ mod tests {
         let map = DOOM_WAD.lumps_following("E1M8", 11).unwrap();
         assert_eq!(map.len(), 11);
         assert_eq!(
-            map.iter().map(LumpRef::name).collect::<Vec<_>>(),
+            map.iter().map(Lump::name).collect::<Vec<_>>(),
             [
                 "E1M8", "THINGS", "LINEDEFS", "SIDEDEFS", "VERTEXES", "SEGS", "SSECTORS", "NODES",
                 "SECTORS", "REJECT", "BLOCKMAP"

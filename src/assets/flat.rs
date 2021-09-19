@@ -4,7 +4,7 @@ use std::ops::{Deref, DerefMut};
 
 use ndarray::ArrayView2;
 
-use crate::wad::{self, LumpRef, Wad};
+use crate::wad::{self, Lump, Wad};
 
 /// A list of floor and ceiling textures, indexed by name.
 #[derive(Clone)]
@@ -91,7 +91,7 @@ pub struct Flat<'wad> {
 
 impl<'wad> Flat<'wad> {
     /// Load a flat from a lump.
-    pub fn load(lump: LumpRef<'wad>) -> wad::Result<Self> {
+    pub fn load(lump: Lump<'wad>) -> wad::Result<Self> {
         let lump = lump.expect_size(64 * 64)?;
 
         Ok(Self {
@@ -100,9 +100,7 @@ impl<'wad> Flat<'wad> {
         })
     }
 
-    /// Flat name, the name of its [lump].
-    ///
-    /// [lump]: wad::LumpRef
+    /// Flat name, the name of its [`Lump`].
     pub fn name(&self) -> &str {
         self.name
     }

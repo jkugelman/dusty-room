@@ -8,13 +8,13 @@ use crate::wad::{self, WadFile};
 ///
 /// [`Wad`]: crate::wad::Wad
 #[derive(Clone, Copy)]
-pub struct LumpRef<'wad> {
+pub struct Lump<'wad> {
     pub(super) file: &'wad WadFile,
     pub(super) name: &'wad str,
     pub(super) data: &'wad [u8],
 }
 
-impl<'wad> LumpRef<'wad> {
+impl<'wad> Lump<'wad> {
     /// The path of the file containing the lump.
     pub fn file(&self) -> &'wad Path {
         self.file.path()
@@ -76,7 +76,7 @@ impl<'wad> LumpRef<'wad> {
     }
 }
 
-impl<'a> fmt::Debug for LumpRef<'a> {
+impl<'a> fmt::Debug for Lump<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(
             fmt,
@@ -88,7 +88,7 @@ impl<'a> fmt::Debug for LumpRef<'a> {
     }
 }
 
-impl<'a> fmt::Display for LumpRef<'a> {
+impl<'a> fmt::Display for Lump<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.name)
     }
@@ -98,10 +98,10 @@ impl<'a> fmt::Display for LumpRef<'a> {
 ///
 /// Usually the first lump gives the name of the block.
 #[derive(Clone, Debug)]
-pub struct LumpRefs<'a>(Vec<LumpRef<'a>>);
+pub struct Lumps<'a>(Vec<Lump<'a>>);
 
-impl<'a> LumpRefs<'a> {
-    pub(super) fn new(lumps: Vec<LumpRef<'a>>) -> Self {
+impl<'a> Lumps<'a> {
+    pub(super) fn new(lumps: Vec<Lump<'a>>) -> Self {
         assert!(lumps.len() > 0);
         Self(lumps)
     }
@@ -129,7 +129,7 @@ impl<'a> LumpRefs<'a> {
     /// # Panics
     ///
     /// Panics if the index is out of bounds.
-    pub fn get_with_name(&self, index: usize, name: &str) -> wad::Result<LumpRef<'a>> {
+    pub fn get_with_name(&self, index: usize, name: &str) -> wad::Result<Lump<'a>> {
         self[index].expect_name(name)
     }
 
@@ -139,22 +139,22 @@ impl<'a> LumpRefs<'a> {
     }
 }
 
-impl<'a> Deref for LumpRefs<'a> {
-    type Target = Vec<LumpRef<'a>>;
+impl<'a> Deref for Lumps<'a> {
+    type Target = Vec<Lump<'a>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<'a> DerefMut for LumpRefs<'a> {
+impl<'a> DerefMut for Lumps<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<'a> IntoIterator for LumpRefs<'a> {
-    type Item = LumpRef<'a>;
+impl<'a> IntoIterator for Lumps<'a> {
+    type Item = Lump<'a>;
     type IntoIter = vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -162,18 +162,18 @@ impl<'a> IntoIterator for LumpRefs<'a> {
     }
 }
 
-impl<'a, 'b> IntoIterator for &'a LumpRefs<'b> {
-    type Item = &'a LumpRef<'b>;
-    type IntoIter = slice::Iter<'a, LumpRef<'b>>;
+impl<'a, 'b> IntoIterator for &'a Lumps<'b> {
+    type Item = &'a Lump<'b>;
+    type IntoIter = slice::Iter<'a, Lump<'b>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
-impl<'a, 'b> IntoIterator for &'a mut LumpRefs<'b> {
-    type Item = &'a mut LumpRef<'b>;
-    type IntoIter = slice::IterMut<'a, LumpRef<'b>>;
+impl<'a, 'b> IntoIterator for &'a mut Lumps<'b> {
+    type Item = &'a mut Lump<'b>;
+    type IntoIter = slice::IterMut<'a, Lump<'b>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
