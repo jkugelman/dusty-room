@@ -26,4 +26,5 @@ pub(crate) mod test;
 mod error;
 mod file;
 mod lump;
+#[allow(clippy::module_inception)]
 mod wad;
