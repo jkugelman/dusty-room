@@ -71,11 +71,17 @@ impl WadFile {
     }
 
     fn open_impl(path: &Path) -> wad::Result<Self> {
-        let mut file = File::open(path).err_path(path)?;
-        let mut raw = Vec::new();
-        file.read_to_end(&mut raw).err_path(path)?;
-        raw.shrink_to_fit();
-        drop(file);
+        // Emulate a [`try` block] with an [IIFE].
+        // [`try` block]: https://doc.rust-lang.org/beta/unstable-book/language-features/try-blocks.html
+        // [IIFE]: https://en.wikipedia.org/wiki/Immediately_invoked_function_expression
+        let raw = (|| {
+            let mut file = File::open(path)?;
+            let size: usize = file.metadata()?.len().try_into().unwrap();
+            let mut raw = Vec::with_capacity(size);
+            file.read_to_end(&mut raw)?;
+            Ok(raw)
+        })()
+        .err_path(path)?;
 
         Self::load(path, raw)
     }
@@ -90,8 +96,9 @@ impl WadFile {
     }
 
     fn load_impl(path: &Path, raw: Vec<u8>) -> wad::Result<Self> {
-        // Use an IIFE to so we can use `?` and convert any `Cow<'static, str>` error messages into
-        // `wad::Error`s.
+        // Emulate a [`try` block] with an [IIFE].
+        // [`try` block]: https://doc.rust-lang.org/beta/unstable-book/language-features/try-blocks.html
+        // [IIFE]: https://en.wikipedia.org/wiki/Immediately_invoked_function_expression
         (|| {
             let Header {
                 kind,
