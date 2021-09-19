@@ -16,7 +16,7 @@ use regex::Regex;
 
 use crate::wad::{self, Lump, Lumps, ResultExt};
 
-/// A single IWAD or PWAD file.
+/// A single IWAD or PWAD.
 ///
 /// This is a lower level type. Code outside the [`wad`] module should mainly use the [`Wad`]
 /// struct, which has a similar interface with the added capability of being able to add patch WADs
@@ -236,7 +236,7 @@ impl WadFile {
     }
 
     /// Checks that the file is the correct kind.
-    pub fn expect(self, expected: WadKind) -> wad::Result<Self> {
+    pub fn expect_kind(self, expected: WadKind) -> wad::Result<Self> {
         if self.kind() == expected {
             Ok(self)
         } else {
@@ -248,6 +248,8 @@ impl WadFile {
     }
 
     /// Retrieves a unique lump by name.
+    ///
+    /// # Errors
     ///
     /// It is an error if the lump is missing.
     pub fn lump(&self, name: &str) -> wad::Result<Lump> {
@@ -270,6 +272,8 @@ impl WadFile {
 
     /// Retrieves a block of `size > 0` lumps following a unique named marker. The marker lump is
     /// included in the result.
+    ///
+    /// # Errors
     ///
     /// It is an error if the block is missing.
     ///
@@ -307,6 +311,8 @@ impl WadFile {
 
     /// Retrieves a block of lumps between unique start and end markers. The marker lumps are
     /// included in the result.
+    ///
+    /// # Errors
     ///
     /// It is an error if the block is missing.
     pub fn lumps_between(&self, start: &str, end: &str) -> wad::Result<Lumps> {

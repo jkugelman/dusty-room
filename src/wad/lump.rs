@@ -104,7 +104,7 @@ impl fmt::Display for Lump<'_> {
     }
 }
 
-/// A block of lumps from a [`Wad`] file.
+/// A block of one or more [`Lump`]s from a [`Wad`] or [`WadFile`].
 ///
 /// Usually the first lump gives the name of the block.
 ///

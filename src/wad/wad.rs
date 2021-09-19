@@ -4,11 +4,13 @@ use crate::wad::{self, Lump, Lumps, WadFile, WadKind};
 
 /// A stack of WAD files layered on top of each other, with later files overlaying earlier ones.
 ///
-/// A `Wad` usually consists of an IWAD overlaid with zero or more PWADs, an ordering which is
-/// enforced by the [`open`] and [`patch`] builder methods. There are a set of unchecked methods if
-/// you want to bypass this constraint.
+/// A `Wad` usually consists of an [IWAD] overlaid with zero or more [PWADs], an ordering which is
+/// enforced by the [`load`] and [`patch`] constructors. There are a set of unchecked constructors
+/// if you want to bypass this constraint.
 ///
-/// [`open`]: Wad::open
+/// [IWAD]: WadKind::Iwad
+/// [PWADs]: WadKind::Pwad
+/// [`load`]: Wad::load
 /// [`patch`]: Wad::patch
 #[derive(Clone, Debug)]
 #[must_use]
@@ -18,35 +20,47 @@ pub struct Wad {
 }
 
 impl Wad {
-    /// Opens the initial [IWAD].
+    /// Loads an initial [IWAD].
     ///
     /// [IWAD]: WadKind::Iwad
-    pub fn open(path: impl AsRef<Path>) -> wad::Result<Self> {
-        let file = WadFile::load(path.as_ref())?.expect(WadKind::Iwad)?;
-        Ok(Self::new(file))
+    pub fn load(path: impl AsRef<Path>) -> wad::Result<Self> {
+        let file = WadFile::load(path.as_ref())?.expect_kind(WadKind::Iwad)?;
+        Self::new(file)
     }
 
-    /// Opens the initial WAD without checking if it's an [IWAD].
+    /// Loads an initial WAD without checking if it's an [IWAD].
     ///
     /// [IWAD]: WadKind::Iwad
-    pub fn open_unchecked(path: impl AsRef<Path>) -> wad::Result<Self> {
+    pub fn load_unchecked(path: impl AsRef<Path>) -> wad::Result<Self> {
         let file = WadFile::load(path.as_ref())?;
-        Ok(Self::new(file))
+        Self::new(file)
     }
 
-    fn new(file: WadFile) -> Self {
-        Self {
+    /// Creates a stack with an initial, already loaded WAD file, which does not need to be an
+    /// [IWAD].
+    ///
+    /// This is a low-level method. It's usually easier to call [`load`] instead and avoid dealing
+    /// directly with [`WadFile`].
+    ///
+    /// `new` does not require the file to be an IWAD. If you want to check you can call
+    /// [`expect_kind`] first.
+    ///
+    /// [IWAD]: WadKind::Iwad
+    /// [`load`]: Wad::load
+    /// [`expect_kind`]: WadFile::expect_kind
+    pub fn new(file: WadFile) -> wad::Result<Self> {
+        Ok(Self {
             initial: Arc::new(file),
             patches: Vec::new(),
-        }
+        })
     }
 
     /// Overlays a [PWAD].
     ///
     /// [PWAD]: WadKind::Pwad
     pub fn patch(&self, path: impl AsRef<Path>) -> wad::Result<Self> {
-        let file = WadFile::load(path.as_ref())?.expect(WadKind::Pwad)?;
-        Ok(self.add(file))
+        let file = WadFile::load(path.as_ref())?.expect_kind(WadKind::Pwad)?;
+        self.add(file)
     }
 
     /// Overlays a WAD without checking if it's a [PWAD].
@@ -54,18 +68,31 @@ impl Wad {
     /// [PWAD]: WadKind::Pwad
     pub fn patch_unchecked(&self, path: impl AsRef<Path>) -> wad::Result<Self> {
         let file = WadFile::load(path.as_ref())?;
-        Ok(self.add(file))
+        self.add(file)
     }
 
-    fn add(&self, file: WadFile) -> Self {
+    /// Overlays an already loaded WAD file, which does not need to be a [PWAD].
+    ///
+    /// This is a low-level method. It's usually easier to call [`patch`] instead and avoid dealing
+    /// directly with [`WadFile`].
+    ///
+    /// `add` does not require the file to be a PWAD. If you want to check you can call
+    /// [`expect_kind`] first.
+    ///
+    /// [PWAD]: WadKind::Pwad
+    /// [`patch`]: Wad::patch
+    /// [`expect_kind`]: WadFile::expect_kind
+    pub fn add(&self, file: WadFile) -> wad::Result<Self> {
         let mut clone = self.clone();
         clone.patches.push(Arc::new(file));
-        clone
+        Ok(clone)
     }
 
     /// Retrieves a unique lump by name.
     ///
     /// Lumps in later files override lumps from earlier ones.
+    ///
+    /// # Errors
     ///
     /// It is an error if the lump is missing.
     pub fn lump(&self, name: &str) -> wad::Result<Lump> {
@@ -85,6 +112,8 @@ impl Wad {
     /// included in the result.
     ///
     /// Blocks in later files override entire blocks from earlier files.
+    ///
+    /// # Errors
     ///
     /// It is an error if the block is missing.
     ///
@@ -116,6 +145,8 @@ impl Wad {
     /// the result.
     ///
     /// Blocks in later wads override entire blocks from earlier files.
+    ///
+    /// # Errors
     ///
     /// It is an error if the block is missing.
     pub fn lumps_between(&self, start: &str, end: &str) -> wad::Result<Lumps> {
@@ -171,7 +202,7 @@ mod tests {
     #[test]
     fn not_a_wad() {
         assert_matches!(
-            Wad::open("test/killer.txt"),
+            Wad::load("test/killer.txt"),
             Err(wad::Error::Malformed { .. })
         );
     }
@@ -222,23 +253,23 @@ mod tests {
     #[test]
     fn iwad_then_pwads() {
         // IWAD + PWAD = success.
-        let _ = Wad::open(DOOM_WAD_PATH)
+        let _ = Wad::load(DOOM_WAD_PATH)
             .unwrap()
             .patch(KILLER_WAD_PATH)
             .unwrap();
 
         // IWAD + IWAD = error.
-        let wad = Wad::open(DOOM_WAD_PATH).unwrap();
+        let wad = Wad::load(DOOM_WAD_PATH).unwrap();
         assert_matches!(wad.patch(DOOM2_WAD_PATH), Err(_));
 
         // Can't start with a PWAD.
-        assert_matches!(Wad::open(KILLER_WAD_PATH), Err(_));
+        assert_matches!(Wad::load(KILLER_WAD_PATH), Err(_));
     }
 
     #[test]
     fn no_type_checking() -> wad::Result<()> {
         // Nonsensical ordering.
-        let silly_wad = Wad::open_unchecked(KILLER_WAD_PATH)?
+        let silly_wad = Wad::load_unchecked(KILLER_WAD_PATH)?
             .patch_unchecked(DOOM2_WAD_PATH)?
             .patch_unchecked(DOOM_WAD_PATH)?
             .patch_unchecked(BIOTECH_WAD_PATH)?;

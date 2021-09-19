@@ -15,7 +15,7 @@ use crate::wad::{self, WadKind};
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// The error type when loading and searching [`Wad`]s and [`WadFile`]s. Errors are always tied to a
-/// particular WAD file.
+/// particular file.
 ///
 /// [`Wad`]: crate::wad::Wad
 /// [`WadFile`]: crate::wad::WadFile
@@ -30,7 +30,10 @@ pub enum Error {
         source: io::Error,
     },
 
-    /// A WAD file or set of WAD files is malformed or missing data.
+    /// A [`Wad`] or [`WadFile`] is malformed or missing data.
+    ///
+    /// [`Wad`]: crate::wad::Wad
+    /// [`WadFile`]: crate::wad::WadFile
     #[error("{}: {desc}", path.display())]
     Malformed {
         /// The path of the malformed file.
@@ -39,7 +42,10 @@ pub enum Error {
         desc: Cow<'static, str>,
     },
 
-    /// An IWAD was received when expecting a PWAD, or vice versa.
+    /// An [IWAD] was received when expecting a [PWAD], or vice versa.
+    ///
+    /// [IWAD]: WadKind::Iwad
+    /// [PWAD]: WadKind::Pwad
     #[error("{}: not {}", path.display(), match expected {
         WadKind::Iwad => "an IWAD",
         WadKind::Pwad => "a PWAD",
@@ -47,7 +53,7 @@ pub enum Error {
     WrongType {
         /// The file path.
         path: PathBuf,
-        /// The WAD type that was expected.
+        /// The WAD kind that was expected.
         expected: WadKind,
     },
 }
@@ -64,7 +70,7 @@ impl Error {
 
 /// Import this trait to add an extension methods to convert a [`std::io::Result`] into a
 /// [`wad::Result`].
-pub trait ResultExt<T> {
+pub(super) trait ResultExt<T> {
     /// Maps a [`std::io::Error`] into a [`wad::Error::Io`] by adding a file path for context.
     fn err_path(self, path: impl AsRef<Path>) -> wad::Result<T>;
 }
