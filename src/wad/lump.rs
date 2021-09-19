@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::ops::{Deref, DerefMut};
 use std::{fmt, slice, vec};
 
@@ -75,7 +76,7 @@ impl<'wad> Lump<'wad> {
     }
     /// Creates a [`wad::Error::Malformed`] blaming this lump.
     pub fn error(&self, desc: &str) -> wad::Error {
-        self.file.error(&format!("{}: {}", self.name(), desc))
+        self.file.error(format!("{}: {}", self.name(), desc))
     }
 }
 
@@ -129,7 +130,7 @@ impl<'wad> Lumps<'wad> {
     }
 
     /// Creates a [`wad::Error::Malformed`] blaming this block.
-    pub fn error(&self, desc: &str) -> wad::Error {
+    pub fn error(&self, desc: impl Into<Cow<'static, str>>) -> wad::Error {
         self.0.first().expect("empty lump block").file.error(desc)
     }
 }

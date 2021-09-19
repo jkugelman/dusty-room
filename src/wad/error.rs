@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -35,7 +36,7 @@ pub enum Error {
         /// The path of the malformed file.
         path: PathBuf,
         /// A description of the error.
-        desc: String,
+        desc: Cow<'static, str>,
     },
 
     /// An IWAD was received when expecting a PWAD, or vice versa.
@@ -52,10 +53,11 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn malformed(path: impl AsRef<Path>, desc: &str) -> Self {
+    /// Creates an [`Error::Malformed`]. Accepts both `&'static str` literals and owned `String`s.
+    pub fn malformed(path: impl AsRef<Path>, desc: impl Into<Cow<'static, str>>) -> Self {
         Self::Malformed {
             path: path.as_ref().to_owned(),
-            desc: desc.to_owned(),
+            desc: desc.into(),
         }
     }
 }

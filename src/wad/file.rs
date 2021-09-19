@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
@@ -111,7 +112,7 @@ impl WadFile {
                 lump_indices,
             })
         })()
-        .map_err(|desc: String| wad::Error::malformed(path, &desc))
+        .map_err(|desc: String| wad::Error::malformed(path, desc))
     }
 
     fn read_header(raw: &[u8]) -> Result<Header, String> {
@@ -228,7 +229,7 @@ impl WadFile {
     /// It is an error if the lump is missing.
     pub fn lump(&self, name: &str) -> wad::Result<Lump> {
         self.try_lump(name)?
-            .ok_or_else(|| self.error(&format!("{} missing", name)))
+            .ok_or_else(|| self.error(format!("{} missing", name)))
     }
 
     /// Retrieves a unique lump by name.
@@ -254,7 +255,7 @@ impl WadFile {
     /// Panics if `size == 0`.
     pub fn lumps_following(&self, start: &str, size: usize) -> wad::Result<Lumps> {
         self.try_lumps_following(start, size)?
-            .ok_or_else(|| self.error(&format!("{} missing", start)))
+            .ok_or_else(|| self.error(format!("{} missing", start)))
     }
 
     /// Retrieves a block of `size > 0` lumps following a unique named marker. The marker lump is
@@ -275,7 +276,7 @@ impl WadFile {
         let start_index = start_index.unwrap();
 
         if start_index + size >= self.lump_indices.len() {
-            return Err(self.error(&format!("{} missing lumps", start)));
+            return Err(self.error(format!("{} missing lumps", start)));
         }
 
         Ok(Some(self.read_lumps(start_index..start_index + size)?))
@@ -287,7 +288,7 @@ impl WadFile {
     /// It is an error if the block is missing.
     pub fn lumps_between(&self, start: &str, end: &str) -> wad::Result<Lumps> {
         self.try_lumps_between(start, end)?
-            .ok_or_else(|| self.error(&format!("{} and {} missing", start, end)))
+            .ok_or_else(|| self.error(format!("{} and {} missing", start, end)))
     }
 
     /// Retrieves a block of lumps between unique start and end markers. The marker lumps are
@@ -306,11 +307,11 @@ impl WadFile {
             }
 
             (Some(_), None) => {
-                return Err(self.error(&format!("{} without {}", start, end)));
+                return Err(self.error(format!("{} without {}", start, end)));
             }
 
             (None, Some(_)) => {
-                return Err(self.error(&format!("{} without {}", end, start)));
+                return Err(self.error(format!("{} without {}", end, start)));
             }
         }
 
@@ -318,7 +319,7 @@ impl WadFile {
         let end_index = end_index.unwrap();
 
         if start_index > end_index {
-            return Err(self.error(&format!("{} after {}", start, end)));
+            return Err(self.error(format!("{} after {}", start, end)));
         }
 
         Ok(Some(self.read_lumps(start_index..end_index + 1)?))
@@ -330,7 +331,7 @@ impl WadFile {
 
         match indices {
             Some(&[index]) => Ok(Some(index)),
-            Some(indices) => Err(self.error(&format!("{} found {} times", name, indices.len()))),
+            Some(indices) => Err(self.error(format!("{} found {} times", name, indices.len()))),
             None => Ok(None),
         }
     }
@@ -358,7 +359,7 @@ impl WadFile {
     }
 
     /// Creates a [`wad::Error::Malformed`] blaming this file.
-    pub fn error(&self, desc: &str) -> wad::Error {
+    pub fn error(&self, desc: impl Into<Cow<'static, str>>) -> wad::Error {
         wad::Error::malformed(&self.path, desc)
     }
 }
