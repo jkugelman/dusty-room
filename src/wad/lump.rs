@@ -160,7 +160,7 @@ impl<'wad> Lumps<'wad> {
     ///
     /// Panics if the index is out of bounds.
     pub fn get_with_name(&self, index: usize, name: &str) -> wad::Result<&'wad Lump> {
-        Ok(self[index].expect_name(name)?)
+        self[index].expect_name(name)
     }
 
     /// Creates a [`wad::Error::Malformed`] blaming this block.

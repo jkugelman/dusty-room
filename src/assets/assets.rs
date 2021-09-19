@@ -14,9 +14,9 @@ pub struct Assets<'wad> {
 impl<'wad> Assets<'wad> {
     /// Loads assets from a [`Wad`].
     pub fn load(wad: &'wad Wad) -> wad::Result<Self> {
-        let palette_bank = PaletteBank::load(&wad)?;
-        let flat_bank = FlatBank::load(&wad)?;
-        let texture_bank = TextureBank::load(&wad)?;
+        let palette_bank = PaletteBank::load(wad)?;
+        let flat_bank = FlatBank::load(wad)?;
+        let texture_bank = TextureBank::load(wad)?;
 
         Ok(Assets {
             _palette_bank: palette_bank,

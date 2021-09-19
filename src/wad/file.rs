@@ -139,12 +139,12 @@ impl WadFile {
     }
 
     fn read_header(raw: &[u8]) -> Result<Header, String> {
-        let raw = raw.get(0..12).ok_or_else(|| format!("not a WAD file"))?;
+        let raw = raw.get(0..12).ok_or_else(|| "not a WAD file".to_owned())?;
 
         let kind = match &raw[0..4] {
             b"IWAD" => WadKind::Iwad,
             b"PWAD" => WadKind::Pwad,
-            _ => return Err(format!("not a WAD file")),
+            _ => return Err("not a WAD file".to_owned()),
         };
         let lump_count = u32::from_le_bytes(raw[4..8].try_into().unwrap());
         let directory_offset = u32::from_le_bytes(raw[8..12].try_into().unwrap());
@@ -216,7 +216,7 @@ impl WadFile {
             lump_indices
                 .entry(location.name.clone())
                 .and_modify(|indices: &mut Vec<usize>| indices.push(index))
-                .or_insert(vec![index]);
+                .or_insert_with(|| vec![index]);
         }
 
         Ok(Directory {

@@ -146,7 +146,7 @@ impl Wad {
             }
         }
 
-        Ok(lookup(&self.initial)?)
+        lookup(&self.initial)
     }
 
     fn try_lookup<'wad, T>(
@@ -159,7 +159,7 @@ impl Wad {
             }
         }
 
-        Ok(try_lookup(&self.initial)?)
+        try_lookup(&self.initial)
     }
 }
 

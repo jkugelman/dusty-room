@@ -32,7 +32,7 @@ impl<'wad> FlatBank<'wad> {
             let flat = Flat::load(&lump)?;
             let existing = flats.insert(flat.name, flat);
 
-            if let Some(_) = existing {
+            if existing.is_some() {
                 return Err(lump.error(&format!("duplicate flat {}", lump.name())));
             }
         }
