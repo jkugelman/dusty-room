@@ -1,6 +1,11 @@
-pub struct Patch {
+use std::marker::PhantomData;
+
+pub struct Patch<'wad> {
     _height: usize,
-    _columns: Vec<Column>,
+    _columns: Vec<Column<'wad>>,
+    _unused: PhantomData<&'wad ()>,
 }
 
-struct Column {}
+struct Column<'wad> {
+    _unused: PhantomData<&'wad ()>,
+}
