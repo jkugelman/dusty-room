@@ -1,5 +1,4 @@
 use std::ops::{Deref, DerefMut};
-use std::path::Path;
 use std::{fmt, slice, vec};
 
 use crate::wad::{self, WadFile};
@@ -19,9 +18,9 @@ impl<'wad> Lump<'wad> {
         Self { file, name, data }
     }
 
-    /// The path of the file containing the lump.
-    pub fn file(&self) -> &'wad Path {
-        self.file.path()
+    /// The file containing the lump.
+    pub fn file(&self) -> &'wad WadFile {
+        self.file
     }
 
     /// The lump name, for example `VERTEXES` or `THINGS`.
@@ -80,7 +79,7 @@ impl<'wad> Lump<'wad> {
     }
 }
 
-impl<'a> fmt::Debug for Lump<'a> {
+impl<'wad> fmt::Debug for Lump<'wad> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(
             fmt,
@@ -92,7 +91,7 @@ impl<'a> fmt::Debug for Lump<'a> {
     }
 }
 
-impl<'a> fmt::Display for Lump<'a> {
+impl<'wad> fmt::Display for Lump<'wad> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.name)
     }
@@ -102,20 +101,20 @@ impl<'a> fmt::Display for Lump<'a> {
 ///
 /// Usually the first lump gives the name of the block.
 #[derive(Clone, Debug)]
-pub struct Lumps<'a>(Vec<Lump<'a>>);
+pub struct Lumps<'wad>(Vec<Lump<'wad>>);
 
-impl<'a> Lumps<'a> {
-    pub(super) fn new(lumps: Vec<Lump<'a>>) -> Self {
+impl<'wad> Lumps<'wad> {
+    pub(super) fn new(lumps: Vec<Lump<'wad>>) -> Self {
         assert!(lumps.len() > 0);
         Self(lumps)
     }
 
-    /// The path of the file containing the lumps.
+    /// The file containing the lumps.
     ///
     /// # Panics
     ///
     /// Panics if the block is empty.
-    pub fn file(&self) -> &Path {
+    pub fn file(&self) -> &'wad WadFile {
         self.0.first().expect("empty lump block").file()
     }
 
@@ -124,7 +123,7 @@ impl<'a> Lumps<'a> {
     /// # Panics
     ///
     /// Panics if the block is empty.
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &'wad str {
         self.0.first().expect("empty lump block").name()
     }
 
@@ -133,7 +132,7 @@ impl<'a> Lumps<'a> {
     /// # Panics
     ///
     /// Panics if the index is out of bounds.
-    pub fn get_with_name(&self, index: usize, name: &str) -> wad::Result<Lump<'a>> {
+    pub fn get_with_name(&self, index: usize, name: &str) -> wad::Result<Lump> {
         self[index].expect_name(name)
     }
 
@@ -143,22 +142,22 @@ impl<'a> Lumps<'a> {
     }
 }
 
-impl<'a> Deref for Lumps<'a> {
-    type Target = Vec<Lump<'a>>;
+impl<'wad> Deref for Lumps<'wad> {
+    type Target = Vec<Lump<'wad>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<'a> DerefMut for Lumps<'a> {
+impl<'wad> DerefMut for Lumps<'wad> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<'a> IntoIterator for Lumps<'a> {
-    type Item = Lump<'a>;
+impl<'wad> IntoIterator for Lumps<'wad> {
+    type Item = Lump<'wad>;
     type IntoIter = vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -166,18 +165,18 @@ impl<'a> IntoIterator for Lumps<'a> {
     }
 }
 
-impl<'a, 'b> IntoIterator for &'a Lumps<'b> {
-    type Item = &'a Lump<'b>;
-    type IntoIter = slice::Iter<'a, Lump<'b>>;
+impl<'a, 'wad> IntoIterator for &'a Lumps<'wad> {
+    type Item = &'a Lump<'wad>;
+    type IntoIter = slice::Iter<'a, Lump<'wad>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
-impl<'a, 'b> IntoIterator for &'a mut Lumps<'b> {
-    type Item = &'a mut Lump<'b>;
-    type IntoIter = slice::IterMut<'a, Lump<'b>>;
+impl<'a, 'wad> IntoIterator for &'a mut Lumps<'wad> {
+    type Item = &'a mut Lump<'wad>;
+    type IntoIter = slice::IterMut<'a, Lump<'wad>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
