@@ -29,6 +29,15 @@ pub enum Error {
         source: io::Error,
     },
 
+    /// A WAD file or set of WAD files is malformed or missing data.
+    #[error("{}: {desc}", path.display())]
+    Malformed {
+        /// The path of the malformed file.
+        path: PathBuf,
+        /// A description of the error.
+        desc: String,
+    },
+
     /// An IWAD was received when expecting a PWAD, or vice versa.
     #[error("{}: not {}", path.display(), match expected {
         WadKind::Iwad => "an IWAD",
@@ -39,15 +48,6 @@ pub enum Error {
         path: PathBuf,
         /// The WAD type that was expected.
         expected: WadKind,
-    },
-
-    /// A WAD file or set of WAD files is malformed or missing data.
-    #[error("{}: {desc}", path.display())]
-    Malformed {
-        /// The path of the malformed file.
-        path: PathBuf,
-        /// A description of the error.
-        desc: String,
     },
 }
 

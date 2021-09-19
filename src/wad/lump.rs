@@ -6,7 +6,7 @@ use crate::wad::{self, WadFile};
 /// A reference to a lump of data in a [`Wad`] file.
 ///
 /// [`Wad`]: crate::wad::Wad
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Lump<'wad> {
     file: &'wad WadFile,
     name: &'wad str,
@@ -30,7 +30,7 @@ impl<'wad> Lump<'wad> {
 
     /// The lump data, a binary blob.
     pub fn data(&self) -> &'wad [u8] {
-        &self.data
+        self.data
     }
 
     /// The size of the lump. Equivalent to `lump.data().len()`.
@@ -44,7 +44,7 @@ impl<'wad> Lump<'wad> {
     }
 
     /// Checks that the lump has the expected name.
-    pub fn expect_name(self, name: &str) -> wad::Result<Self> {
+    pub fn expect_name(&self, name: &str) -> wad::Result<&Self> {
         if self.name == name {
             Ok(self)
         } else {
@@ -53,7 +53,7 @@ impl<'wad> Lump<'wad> {
     }
 
     /// Checks that the lump is the expected number of bytes.
-    pub fn expect_size(self, size: usize) -> wad::Result<Self> {
+    pub fn expect_size(&self, size: usize) -> wad::Result<&Self> {
         if self.size() == size {
             Ok(self)
         } else {
@@ -62,7 +62,7 @@ impl<'wad> Lump<'wad> {
     }
 
     /// Checks that the lump contains a multiple of `size` bytes.
-    pub fn expect_size_multiple(self, size: usize) -> wad::Result<Self> {
+    pub fn expect_size_multiple(&self, size: usize) -> wad::Result<&Self> {
         if self.size() % size == 0 {
             Ok(self)
         } else {
@@ -79,7 +79,7 @@ impl<'wad> Lump<'wad> {
     }
 }
 
-impl<'wad> fmt::Debug for Lump<'wad> {
+impl fmt::Debug for Lump<'_> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(
             fmt,
@@ -91,7 +91,7 @@ impl<'wad> fmt::Debug for Lump<'wad> {
     }
 }
 
-impl<'wad> fmt::Display for Lump<'wad> {
+impl fmt::Display for Lump<'_> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.name)
     }
@@ -110,21 +110,13 @@ impl<'wad> Lumps<'wad> {
     }
 
     /// The file containing the lumps.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the block is empty.
     pub fn file(&self) -> &'wad WadFile {
-        self.0.first().expect("empty lump block").file()
+        self.0.first().expect("empty lump block").file
     }
 
     /// The name of the block, the name of the first lump.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the block is empty.
     pub fn name(&self) -> &'wad str {
-        self.0.first().expect("empty lump block").name()
+        self.0.first().expect("empty lump block").name
     }
 
     /// Gets the lump at `index` and checks that it has the expected name.
@@ -132,8 +124,8 @@ impl<'wad> Lumps<'wad> {
     /// # Panics
     ///
     /// Panics if the index is out of bounds.
-    pub fn get_with_name(&self, index: usize, name: &str) -> wad::Result<Lump> {
-        self[index].expect_name(name)
+    pub fn get_with_name(&self, index: usize, name: &str) -> wad::Result<&'wad Lump> {
+        Ok(self[index].expect_name(name)?)
     }
 
     /// Creates a [`wad::Error::Malformed`] blaming this block.
@@ -150,7 +142,7 @@ impl<'wad> Deref for Lumps<'wad> {
     }
 }
 
-impl<'wad> DerefMut for Lumps<'wad> {
+impl DerefMut for Lumps<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }

@@ -65,6 +65,7 @@ lazy_static! {
 impl WadFile {
     /// Reads a WAD file from disk.
     pub fn open(path: impl AsRef<Path>) -> wad::Result<Self> {
+        // Defer to a non-generic helper to minimize the amount of code subject to monomorphization.
         Self::open_impl(path.as_ref())
     }
 
@@ -75,7 +76,20 @@ impl WadFile {
         raw.shrink_to_fit();
         drop(file);
 
-        // Use an IIFE to so we can use `?` and convert any `String` error messages into
+        Self::load(path, raw)
+    }
+
+    /// Loads a WAD file from a raw byte buffer.
+    ///
+    /// The `path` only used for display purposes, such as in error messages. It doesn't need to
+    /// point to an actual file on disk.
+    pub fn load(path: impl AsRef<Path>, raw: Vec<u8>) -> wad::Result<Self> {
+        // Defer to a non-generic helper to minimize the amount of code subject to monomorphization.
+        Self::load_impl(path.as_ref(), raw)
+    }
+
+    fn load_impl(path: &Path, raw: Vec<u8>) -> wad::Result<Self> {
+        // Use an IIFE to so we can use `?` and convert any `Cow<'static, str>` error messages into
         // `wad::Error`s.
         (|| {
             let Header {
@@ -325,10 +339,11 @@ impl WadFile {
     fn read_lump(&self, index: usize) -> wad::Result<Lump> {
         let location = &self.lump_locations[index];
 
+        let file = self;
         let name = &location.name;
         let data = &self.raw[location.offset..][..location.size];
 
-        Ok(Lump::new(self, name, data))
+        Ok(Lump::new(file, name, data))
     }
 
     /// Reads one or more lumps from the raw data, pulling out slices.

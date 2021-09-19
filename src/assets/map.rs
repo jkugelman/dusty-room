@@ -22,7 +22,7 @@ impl Map {
         }
         let lumps = lumps.unwrap();
 
-        let name = name.to_string();
+        let name = name.to_owned();
         let things = Self::read_things(lumps.get_with_name(1, "THINGS")?);
         let vertices = Self::read_vertices(lumps.get_with_name(4, "VERTEXES")?);
         let sectors = Self::read_sectors(lumps.get_with_name(8, "SECTORS")?);
@@ -39,11 +39,11 @@ impl Map {
         }))
     }
 
-    fn read_things(_lump: Lump) {}
-    fn read_vertices(_lump: Lump) {}
-    fn read_sectors(_lump: Lump) {}
-    fn read_sides(_lump: Lump) {}
-    fn read_lines(_lump: Lump) {}
+    fn read_things(_lump: &Lump) {}
+    fn read_vertices(_lump: &Lump) {}
+    fn read_sectors(_lump: &Lump) {}
+    fn read_sides(_lump: &Lump) {}
+    fn read_lines(_lump: &Lump) {}
 }
 
 impl fmt::Debug for Map {

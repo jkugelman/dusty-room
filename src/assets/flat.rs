@@ -29,7 +29,7 @@ impl<'wad> FlatBank<'wad> {
                 continue;
             }
 
-            let flat = Flat::load(lump)?;
+            let flat = Flat::load(&lump)?;
             let existing = flats.insert(flat.name, flat);
 
             if let Some(_) = existing {
@@ -91,8 +91,8 @@ pub struct Flat<'wad> {
 
 impl<'wad> Flat<'wad> {
     /// Load a flat from a lump.
-    pub fn load(lump: Lump<'wad>) -> wad::Result<Self> {
-        let lump = lump.expect_size(64 * 64)?;
+    pub fn load(lump: &Lump<'wad>) -> wad::Result<Self> {
+        lump.expect_size(64 * 64)?;
 
         Ok(Self {
             name: lump.name(),
