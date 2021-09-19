@@ -8,7 +8,7 @@ use crate::wad::{self, Wad};
 pub struct Assets<'wad> {
     _palette_bank: PaletteBank<'wad>,
     _flat_bank: FlatBank<'wad>,
-    _texture_bank: TextureBank,
+    _texture_bank: TextureBank<'wad>,
 }
 
 impl<'wad> Assets<'wad> {

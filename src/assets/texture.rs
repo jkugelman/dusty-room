@@ -1,14 +1,15 @@
 use std::collections::BTreeMap;
+use std::marker::PhantomData;
 
 use crate::wad::{self, Wad};
 
 #[derive(Clone, Debug)]
-pub struct TextureBank {
-    _textures: BTreeMap<String, Texture>,
+pub struct TextureBank<'wad> {
+    _textures: BTreeMap<&'wad str, Texture<'wad>>,
 }
 
-impl TextureBank {
-    pub fn load(_wad: &Wad) -> wad::Result<Self> {
+impl<'wad> TextureBank<'wad> {
+    pub fn load(_wad: &'wad Wad) -> wad::Result<Self> {
         Ok(Self {
             _textures: BTreeMap::new(),
         })
@@ -16,4 +17,6 @@ impl TextureBank {
 }
 
 #[derive(Clone, Debug)]
-pub struct Texture {}
+pub struct Texture<'wad> {
+    _unused: PhantomData<&'wad ()>,
+}
