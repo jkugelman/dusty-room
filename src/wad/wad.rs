@@ -193,8 +193,8 @@ mod tests {
     #[test]
     fn lumps_between() {
         let sprites = DOOM_WAD.lumps_between("S_START", "S_END").unwrap();
-        assert_eq!(sprites.first().unwrap().name(), "S_START");
-        assert_eq!(sprites.last().unwrap().name(), "S_END");
+        assert_eq!(sprites.first().name(), "S_START");
+        assert_eq!(sprites.last().name(), "S_END");
         assert_eq!(sprites.len(), 485);
         assert_eq!(sprites[100].name(), "SARGB4B6");
 

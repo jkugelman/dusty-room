@@ -4,7 +4,12 @@ use std::{fmt, slice, vec};
 
 use crate::wad::{self, WadFile};
 
-/// A reference to a lump of data in a [`Wad`] file.
+/// A lump of data from a [`Wad`] or [`WadFile`].
+///
+/// Lumps are cheap to create as they simply borrow a slice of data from their WAD file. Cloning
+/// should be treated as an expensive operation, though. The plan is to eventually make lumps
+/// mutable by making the data slice [copy-on-write][`Cow`], which would make cloning modified lumps
+/// expensive.
 ///
 /// [`Wad`]: crate::wad::Wad
 #[derive(Clone)]
@@ -15,6 +20,7 @@ pub struct Lump<'wad> {
 }
 
 impl<'wad> Lump<'wad> {
+    /// Creates a lump pointing at a slice of data from a `WadFile`.
     pub(super) fn new(file: &'wad WadFile, name: &'wad str, data: &'wad [u8]) -> Self {
         Self { file, name, data }
     }
@@ -101,26 +107,54 @@ impl fmt::Display for Lump<'_> {
 /// A block of lumps from a [`Wad`] file.
 ///
 /// Usually the first lump gives the name of the block.
+///
+/// Lumps are cheap to create as they simply borrow a slice of data from their WAD file. Cloning
+/// should be treated as an expensive operation, though. The plan is to eventually make lumps
+/// mutable by making these references [copy-on-write][`Cow`], which would make cloning modified
+/// lumps expensive.
+///
+/// [`Wad`]: crate::wad::Wad
+
 #[derive(Clone, Debug)]
 pub struct Lumps<'wad>(Vec<Lump<'wad>>);
 
 impl<'wad> Lumps<'wad> {
+    /// Creates a block of lumps.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `lumps` is empty.
     pub(super) fn new(lumps: Vec<Lump<'wad>>) -> Self {
-        assert!(lumps.len() > 0);
+        assert!(!lumps.is_empty());
         Self(lumps)
     }
 
     /// The file containing the lumps.
     pub fn file(&self) -> &'wad WadFile {
-        self.0.first().expect("empty lump block").file
+        // It doesn't matter which lump we look at. They all come from the same file.
+        self.first().file
     }
 
-    /// The name of the block, the name of the first lump.
+    /// The name of the first lump.
     pub fn name(&self) -> &'wad str {
-        self.0.first().expect("empty lump block").name
+        self.first().name
+    }
+
+    /// The first lump in the block.
+    pub fn first(&self) -> &Lump<'wad> {
+        self.0.first().unwrap()
+    }
+
+    /// The last lump in the block.
+    pub fn last(&self) -> &Lump<'wad> {
+        self.0.last().unwrap()
     }
 
     /// Gets the lump at `index` and checks that it has the expected name.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the lump has the wrong name.
     ///
     /// # Panics
     ///
@@ -131,7 +165,7 @@ impl<'wad> Lumps<'wad> {
 
     /// Creates a [`wad::Error::Malformed`] blaming this block.
     pub fn error(&self, desc: impl Into<Cow<'static, str>>) -> wad::Error {
-        self.0.first().expect("empty lump block").file.error(desc)
+        self.first().file.error(desc)
     }
 }
 
