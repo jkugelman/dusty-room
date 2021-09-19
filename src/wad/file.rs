@@ -2,11 +2,12 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
-use std::fmt;
+use std::convert::TryFrom;
 use std::fs::File;
 use std::io::Read;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
+use std::{fmt, io};
 
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -64,62 +65,62 @@ lazy_static! {
 }
 
 impl WadFile {
-    /// Reads a WAD file from disk.
-    pub fn open(path: impl AsRef<Path>) -> wad::Result<Self> {
-        // Defer to a non-generic helper to minimize the amount of code subject to monomorphization.
-        Self::open_impl(path.as_ref())
+    /// Loads a WAD file from disk.
+    pub fn load(path: impl AsRef<Path>) -> wad::Result<Self> {
+        let path = path.as_ref();
+        let raw = Self::read_into_vec(path).err_path(path)?;
+        Self::load_raw(path, raw)
     }
 
-    fn open_impl(path: &Path) -> wad::Result<Self> {
-        // Emulate a [`try` block] with an [IIFE].
-        // [`try` block]: https://doc.rust-lang.org/beta/unstable-book/language-features/try-blocks.html
-        // [IIFE]: https://en.wikipedia.org/wiki/Immediately_invoked_function_expression
-        let raw = (|| {
-            let mut file = File::open(path)?;
-            let size: usize = file.metadata()?.len().try_into().unwrap();
-            let mut raw = Vec::with_capacity(size);
-            file.read_to_end(&mut raw)?;
-            Ok(raw)
-        })()
-        .err_path(path)?;
+    fn read_into_vec(path: &Path) -> io::Result<Vec<u8>> {
+        let mut file = File::open(path)?;
 
-        Self::load(path, raw)
+        // If the file is really large it may not fit into memory. Individual allocations can never
+        // exceed `isize::MAX` bytes, which is just 2GB on a 32-bit system.
+        //
+        // Ideally we could check if `Vec::with_capacity` fails, but in stable Rust there's no way
+        // to do that. Nightly offers `Vec::try_reserve`, so hope is on the horizon.
+        let size: u64 = file.metadata()?.len();
+        if isize::try_from(size).is_err() {
+            return Err(io::Error::new(io::ErrorKind::OutOfMemory, "file too large"));
+        }
+        let size: usize = size.try_into().unwrap();
+
+        let mut raw = Vec::with_capacity(size);
+        file.read_to_end(&mut raw)?;
+
+        Ok(raw)
     }
 
     /// Loads a WAD file from a raw byte buffer.
     ///
     /// The `path` only used for display purposes, such as in error messages. It doesn't need to
     /// point to an actual file on disk.
-    pub fn load(path: impl AsRef<Path>, raw: Vec<u8>) -> wad::Result<Self> {
-        // Defer to a non-generic helper to minimize the amount of code subject to monomorphization.
-        Self::load_impl(path.as_ref(), raw)
+    pub fn load_raw(path: impl AsRef<Path>, raw: Vec<u8>) -> wad::Result<Self> {
+        Self::load_raw_impl(path.as_ref(), raw)
+            .map_err(|desc: String| wad::Error::malformed(path, desc))
     }
 
-    fn load_impl(path: &Path, raw: Vec<u8>) -> wad::Result<Self> {
-        // Emulate a [`try` block] with an [IIFE].
-        // [`try` block]: https://doc.rust-lang.org/beta/unstable-book/language-features/try-blocks.html
-        // [IIFE]: https://en.wikipedia.org/wiki/Immediately_invoked_function_expression
-        (|| {
-            let Header {
-                kind,
-                lump_count,
-                directory_offset,
-            } = Self::read_header(&raw)?;
+    // Non-generic helper to minimize the amount of code subject to monomorphization.
+    fn load_raw_impl(path: &Path, raw: Vec<u8>) -> Result<Self, String> {
+        let Header {
+            kind,
+            lump_count,
+            directory_offset,
+        } = Self::read_header(&raw)?;
 
-            let Directory {
-                lump_locations,
-                lump_indices,
-            } = Self::read_directory(&raw, lump_count, directory_offset)?;
+        let Directory {
+            lump_locations,
+            lump_indices,
+        } = Self::read_directory(&raw, lump_count, directory_offset)?;
 
-            Ok(Self {
-                path: path.to_owned(),
-                raw,
-                kind,
-                lump_locations,
-                lump_indices,
-            })
-        })()
-        .map_err(|desc: String| wad::Error::malformed(path, desc))
+        Ok(Self {
+            path: path.to_owned(),
+            raw,
+            kind,
+            lump_locations,
+            lump_indices,
+        })
     }
 
     fn read_header(raw: &[u8]) -> Result<Header, String> {

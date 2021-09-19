@@ -22,7 +22,7 @@ impl Wad {
     ///
     /// [IWAD]: WadKind::Iwad
     pub fn open(path: impl AsRef<Path>) -> wad::Result<Self> {
-        let file = WadFile::open(path.as_ref())?.expect(WadKind::Iwad)?;
+        let file = WadFile::load(path.as_ref())?.expect(WadKind::Iwad)?;
         Ok(Self::new(file))
     }
 
@@ -30,7 +30,7 @@ impl Wad {
     ///
     /// [IWAD]: WadKind::Iwad
     pub fn open_unchecked(path: impl AsRef<Path>) -> wad::Result<Self> {
-        let file = WadFile::open(path.as_ref())?;
+        let file = WadFile::load(path.as_ref())?;
         Ok(Self::new(file))
     }
 
@@ -45,7 +45,7 @@ impl Wad {
     ///
     /// [PWAD]: WadKind::Pwad
     pub fn patch(&self, path: impl AsRef<Path>) -> wad::Result<Self> {
-        let file = WadFile::open(path.as_ref())?.expect(WadKind::Pwad)?;
+        let file = WadFile::load(path.as_ref())?.expect(WadKind::Pwad)?;
         Ok(self.add(file))
     }
 
@@ -53,7 +53,7 @@ impl Wad {
     ///
     /// [PWAD]: WadKind::Pwad
     pub fn patch_unchecked(&self, path: impl AsRef<Path>) -> wad::Result<Self> {
-        let file = WadFile::open(path.as_ref())?;
+        let file = WadFile::load(path.as_ref())?;
         Ok(self.add(file))
     }
 
