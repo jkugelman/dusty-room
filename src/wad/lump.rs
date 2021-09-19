@@ -9,12 +9,16 @@ use crate::wad::{self, WadFile};
 /// [`Wad`]: crate::wad::Wad
 #[derive(Clone, Copy)]
 pub struct Lump<'wad> {
-    pub(super) file: &'wad WadFile,
-    pub(super) name: &'wad str,
-    pub(super) data: &'wad [u8],
+    file: &'wad WadFile,
+    name: &'wad str,
+    data: &'wad [u8],
 }
 
 impl<'wad> Lump<'wad> {
+    pub(super) fn new(file: &'wad WadFile, name: &'wad str, data: &'wad [u8]) -> Self {
+        Self { file, name, data }
+    }
+
     /// The path of the file containing the lump.
     pub fn file(&self) -> &'wad Path {
         self.file.path()

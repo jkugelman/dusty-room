@@ -325,11 +325,10 @@ impl WadFile {
     fn read_lump(&self, index: usize) -> wad::Result<Lump> {
         let location = &self.lump_locations[index];
 
-        Ok(Lump {
-            file: self,
-            name: &location.name,
-            data: &self.raw[location.offset..][..location.size],
-        })
+        let name = &location.name;
+        let data = &self.raw[location.offset..][..location.size];
+
+        Ok(Lump::new(self, name, data))
     }
 
     /// Reads one or more lumps from the raw data, pulling out slices.
