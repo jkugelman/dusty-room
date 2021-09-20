@@ -47,9 +47,18 @@ impl<'wad> Lump<'wad> {
         self.data.len()
     }
 
-    /// Returns `true` if the lump contains no data.
+    /// Returns `true` if this is a marker lump with no data.
+    ///
+    /// This is equivalent to `self.data.len() == 0`.
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
+    }
+
+    /// Returns `true` if the lump contains data.
+    ///
+    /// This is equivalent to `!self.is_empty()`.
+    pub fn has_data(&self) -> bool {
+        !self.is_empty()
     }
 
     /// Checks that the lump has the expected name.
