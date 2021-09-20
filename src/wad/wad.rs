@@ -10,8 +10,8 @@ use crate::wad::{self, Lump, Lumps, WadFile, WadKind};
 ///
 /// [IWAD]: WadKind::Iwad
 /// [PWADs]: WadKind::Pwad
-/// [`load`]: Wad::load
-/// [`patch`]: Wad::patch
+/// [`load`]: Self::load
+/// [`patch`]: Self::patch
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct Wad {
@@ -46,7 +46,7 @@ impl Wad {
     /// [`expect_kind`] first.
     ///
     /// [IWAD]: WadKind::Iwad
-    /// [`load`]: Wad::load
+    /// [`load`]: Self::load
     /// [`expect_kind`]: WadFile::expect_kind
     pub fn new(file: WadFile) -> wad::Result<Self> {
         Ok(Self {
@@ -80,7 +80,7 @@ impl Wad {
     /// [`expect_kind`] first.
     ///
     /// [PWAD]: WadKind::Pwad
-    /// [`patch`]: Wad::patch
+    /// [`patch`]: Self::patch
     /// [`expect_kind`]: WadFile::expect_kind
     pub fn add(&self, file: WadFile) -> wad::Result<Self> {
         let mut clone = self.clone();
