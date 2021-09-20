@@ -40,7 +40,9 @@ impl<'wad> Lump<'wad> {
         self.data
     }
 
-    /// The size of the lump. Equivalent to `lump.data().len()`.
+    /// The size of the lump.
+    ///
+    /// This is equivalent to `self.data().len()`.
     pub fn size(&self) -> usize {
         self.data.len()
     }
@@ -80,6 +82,7 @@ impl<'wad> Lump<'wad> {
             )))
         }
     }
+
     /// Creates a [`wad::Error::Malformed`] blaming this lump.
     pub fn error(&self, desc: &str) -> wad::Error {
         self.file.error(format!("{}: {}", self.name(), desc))
@@ -114,7 +117,6 @@ impl fmt::Display for Lump<'_> {
 /// lumps expensive.
 ///
 /// [`Wad`]: crate::wad::Wad
-
 #[derive(Clone, Debug)]
 pub struct Lumps<'wad>(Vec<Lump<'wad>>);
 
