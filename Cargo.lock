@@ -24,6 +24,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
+name = "byteorder"
+version = "1.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
+
+[[package]]
 name = "euclid"
 version = "0.22.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -37,6 +43,7 @@ name = "kdoom"
 version = "0.1.0"
 dependencies = [
  "assert_matches",
+ "byteorder",
  "euclid",
  "lazy_static",
  "ndarray",

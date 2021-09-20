@@ -163,23 +163,22 @@ impl WadFile {
     ) -> Result<Directory, String> {
         let mut cursor = raw
             .get(directory_offset..)
-            .ok_or_else(|| format!("lump directory at illegal offset {}", directory_offset))?;
+            .ok_or_else(|| format!("lump directory at bad offset {}", directory_offset))?;
 
         // The WAD is untrusted so clamp how much memory is pre-allocated. For comparison,
         // `doom.wad` has 1,264 lumps and `doom2.wad` has 2,919.
         let mut lump_locations = Vec::with_capacity(lump_count.clamp(0, 4096));
 
         for _ in 0..lump_count {
+            // Read the entry and advance the read cursor.
             let entry = &cursor
-                .get(0..16)
-                .ok_or_else(|| format!("lump directory has illegal count {}", lump_count))?;
+                .get(..16)
+                .ok_or_else(|| format!("lump directory has bad count {}", lump_count))?;
+            cursor = &cursor[16..];
 
             let offset = u32::from_le_bytes(entry[0..4].try_into().unwrap());
             let size = u32::from_le_bytes(entry[4..8].try_into().unwrap());
             let name: [u8; 8] = entry[8..16].try_into().unwrap();
-
-            // Advance the read cursor.
-            cursor = &cursor[16..];
 
             // Strip trailing NULs and convert into a `String`. Stay away from `str::from_utf8` so
             // we don't have to deal with UTF-8 decoding errors.
@@ -192,7 +191,7 @@ impl WadFile {
             // Verify that the lump name is all uppercase, digits, and a handful of acceptable
             // symbols.
             if !LUMP_NAME_REGEX.is_match(&name) {
-                return Err(format!("illegal lump name {:?}", name));
+                return Err(format!("bad lump name {:?}", name));
             }
 
             // Check lump bounds now so we don't have to later.
@@ -200,10 +199,10 @@ impl WadFile {
             let size: usize = size.try_into().unwrap();
 
             if offset >= raw.len() {
-                return Err(format!("{} at illegal offset {}", name, offset));
+                return Err(format!("{} at bad offset {}", name, offset));
             }
             if offset + size >= raw.len() {
-                return Err(format!("{} has illegal size {}", name, size));
+                return Err(format!("{} has bad size {}", name, size));
             }
 
             lump_locations.push(LumpLocation { offset, size, name });

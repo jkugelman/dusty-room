@@ -16,11 +16,14 @@ pub struct Flat<'wad> {
 impl<'wad> Flat<'wad> {
     /// Load a flat from a lump.
     pub fn load(lump: &Lump<'wad>) -> wad::Result<Self> {
-        lump.expect_size(64 * 64)?;
+        let width: usize = Self::width().into();
+        let height: usize = Self::height().into();
+
+        lump.expect_size(width * height)?;
 
         Ok(Self {
             name: lump.name(),
-            pixels: ArrayView2::from_shape(Self::shape(), lump.data()).unwrap(),
+            pixels: ArrayView2::from_shape((width, height), lump.data()).unwrap(),
         })
     }
 
@@ -29,9 +32,14 @@ impl<'wad> Flat<'wad> {
         self.name
     }
 
-    /// Flats are always 64x64 pixels.
-    pub const fn shape() -> (usize, usize) {
-        (64, 64)
+    /// Width in pixels. Flats are always 64x64.
+    pub const fn width() -> u16 {
+        64
+    }
+
+    /// Height in pixels. Flats are always 64x64.
+    pub const fn height() -> u16 {
+        64
     }
 }
 
