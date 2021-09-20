@@ -6,6 +6,47 @@ use ndarray::ArrayView2;
 
 use crate::wad::{self, Lump, Wad};
 
+/// A floor or ceiling texture.
+#[derive(Clone)]
+pub struct Flat<'wad> {
+    name: &'wad str,
+    pixels: ArrayView2<'wad, u8>,
+}
+
+impl<'wad> Flat<'wad> {
+    /// Load a flat from a lump.
+    pub fn load(lump: &Lump<'wad>) -> wad::Result<Self> {
+        lump.expect_size(64 * 64)?;
+
+        Ok(Self {
+            name: lump.name(),
+            pixels: ArrayView2::from_shape(Self::shape(), lump.data()).unwrap(),
+        })
+    }
+
+    /// Flat name, the name of its [`Lump`].
+    pub fn name(&self) -> &str {
+        self.name
+    }
+
+    /// Flats are always 64x64 pixels.
+    pub const fn shape() -> (usize, usize) {
+        (64, 64)
+    }
+}
+
+impl fmt::Debug for Flat<'_> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.name)
+    }
+}
+
+impl fmt::Display for Flat<'_> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.name)
+    }
+}
+
 /// A list of floor and ceiling textures, indexed by name.
 #[derive(Clone)]
 pub struct FlatBank<'wad>(BTreeMap<&'wad str, Flat<'wad>>);
@@ -79,47 +120,6 @@ impl<'a, 'wad> IntoIterator for &'a mut FlatBank<'wad> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
-    }
-}
-
-/// A floor or ceiling texture.
-#[derive(Clone)]
-pub struct Flat<'wad> {
-    name: &'wad str,
-    pixels: ArrayView2<'wad, u8>,
-}
-
-impl<'wad> Flat<'wad> {
-    /// Load a flat from a lump.
-    pub fn load(lump: &Lump<'wad>) -> wad::Result<Self> {
-        lump.expect_size(64 * 64)?;
-
-        Ok(Self {
-            name: lump.name(),
-            pixels: ArrayView2::from_shape(Self::shape(), lump.data()).unwrap(),
-        })
-    }
-
-    /// Flat name, the name of its [`Lump`].
-    pub fn name(&self) -> &str {
-        self.name
-    }
-
-    /// Flats are always 64x64 pixels.
-    pub const fn shape() -> (usize, usize) {
-        (64, 64)
-    }
-}
-
-impl fmt::Debug for Flat<'_> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.name)
-    }
-}
-
-impl fmt::Display for Flat<'_> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.name)
     }
 }
 
