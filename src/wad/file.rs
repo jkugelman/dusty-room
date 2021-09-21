@@ -248,7 +248,7 @@ impl WadFile {
         }
         let index = index.unwrap();
 
-        Ok(Some(self.read_lump(index)?))
+        Ok(Some(self.read_lump(index)))
     }
 
     /// Retrieves a block of `size > 0` lumps following a unique named marker. The marker lump is
@@ -287,7 +287,7 @@ impl WadFile {
             return Err(self.error(format!("{} missing lumps", start)));
         }
 
-        Ok(Some(self.read_lumps(start_index..start_index + size)?))
+        Ok(Some(self.read_lumps(start_index..start_index + size)))
     }
 
     /// Retrieves a block of lumps between unique start and end markers. The marker lumps are
@@ -332,40 +332,72 @@ impl WadFile {
             return Err(self.error(format!("{} after {}", start, end)));
         }
 
-        Ok(Some(self.read_lumps(start_index..end_index + 1)?))
+        Ok(Some(self.read_lumps(start_index..end_index + 1)))
     }
 
-    /// Looks up a lump's index. It's an error if the lump isn't unique.
+    /// Looks up a lump's index.
+    ///
+    /// Returns `Ok(None)` if there is no such lump.
+    ///
+    /// # Uniqueness
+    ///
+    /// If the lump name isn't unique then that's an error--unless the duplicated lumps have
+    /// identical content. As the [Unofficial Doom Specs] explain, some of the official DOOM wads
+    /// shipped with accidental duplications:
+    ///
+    /// > There are some imperfections in the `DOOM.WAD` file. All versions up to 1.666 have the
+    /// > `SW18_7` lump included twice. Versions before 1.666 have the `COMP03_8` lump twice. And
+    /// > with version 1.666 somebody really messed up, because every single `DP*` and `DS*` and
+    /// > `D_*` lump that's in the shareware `DOOM1.WAD` is in the registered `DOOM.WAD` twice. The
+    /// > error doesn't adversely affect play in any way, but it does take up an unnecessary 800k on
+    /// > the hard drive.
+    ///
+    /// For these lumps the last index returned.
+    ///
+    /// [Unofficial Doom Specs]: http://edge.sourceforge.net/edit_guide/doom_specs.htm
     fn try_lump_index(&self, name: &str) -> wad::Result<Option<usize>> {
         let indices: Option<&[usize]> = self.lump_indices.get(name).map(Vec::as_slice);
 
         match indices {
-            Some(&[index]) => Ok(Some(index)),
-            Some(indices) => Err(self.error(format!("{} found {} times", name, indices.len()))),
+            // Not found.
             None => Ok(None),
+
+            // Unique index.
+            Some(&[index]) => Ok(Some(index)),
+
+            // Multiple indices.
+            Some(indices) => {
+                let mut lumps: Vec<_> =
+                    indices.iter().map(|&index| self.read_lump(index)).collect();
+                lumps.dedup_by_key(|lump| lump.data());
+
+                if lumps.len() == 1 && lumps[0].has_data() {
+                    Ok(Some(*indices.last().unwrap()))
+                } else {
+                    Err(self.error(format!("{} found {} times", name, indices.len())))
+                }
+            }
         }
     }
 
     /// Reads a lump from the raw data, pulling out a slice.
-    fn read_lump(&self, index: usize) -> wad::Result<Lump> {
+    fn read_lump(&self, index: usize) -> Lump {
         let location = &self.lump_locations[index];
 
         let file = self;
         let name = &location.name;
         let data = &self.raw[location.offset..][..location.size];
 
-        Ok(Lump::new(file, name, data))
+        Lump::new(file, name, data)
     }
 
     /// Reads one or more lumps from the raw data, pulling out slices.
-    fn read_lumps(&self, indices: Range<usize>) -> wad::Result<Lumps> {
+    fn read_lumps(&self, indices: Range<usize>) -> Lumps {
         assert!(!indices.is_empty());
 
-        let lumps: Vec<Lump> = indices
-            .map(|index| self.read_lump(index))
-            .collect::<wad::Result<_>>()?;
+        let lumps = indices.map(|index| self.read_lump(index)).collect();
 
-        Ok(Lumps::new(lumps))
+        Lumps::new(lumps)
     }
 
     /// Creates a [`wad::Error::Malformed`] blaming this file.

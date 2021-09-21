@@ -86,7 +86,7 @@ impl<'wad> FlatBank<'wad> {
             }
         }
 
-        Ok(FlatBank(flats))
+        Ok(Self(flats))
     }
 }
 

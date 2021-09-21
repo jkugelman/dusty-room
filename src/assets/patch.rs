@@ -1,10 +1,11 @@
 use std::convert::TryInto;
-use std::fmt;
-use std::io::{self, Cursor, Seek, SeekFrom};
+use std::io::{self, Cursor, Read, Seek, SeekFrom};
+use std::ops::{Deref, DerefMut};
+use std::{fmt, slice, vec};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
-use crate::wad::{self, Lump};
+use crate::wad::{self, Lump, Wad};
 
 /// A patch is an image that is used as the building block for a composite [`Texture`].
 ///
@@ -45,13 +46,15 @@ impl<'wad> Patch<'wad> {
             let left = cursor.read_i16::<LittleEndian>()?;
 
             // Read column offsets.
-            let mut column_offsets = Vec::with_capacity(width.into());
+            // The WAD is untrusted so clamp how much memory is pre-allocated.
+            let mut column_offsets = Vec::with_capacity(width.clamp(0, 512).into());
             for _ in 0..width {
                 column_offsets.push(cursor.read_u32::<LittleEndian>()?);
             }
 
             // Read columns.
-            let mut columns = Vec::with_capacity(width.into());
+            // The WAD is untrusted so clamp how much memory is pre-allocated.
+            let mut columns = Vec::with_capacity(width.clamp(0, 512).into());
 
             for column_offset in column_offsets {
                 cursor.seek(SeekFrom::Start(column_offset.into()))?;
@@ -114,6 +117,11 @@ impl<'wad> Patch<'wad> {
         .map_err(|_| lump.error("bad patch data"))
     }
 
+    /// The patch's name.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     /// Width in pixels.
     pub fn width(&self) -> u16 {
         self.width
@@ -141,6 +149,91 @@ impl fmt::Display for Patch<'_> {
     }
 }
 
+/// A list of patches from the `PNAMES` lump.
+#[derive(Clone, Debug)]
+pub struct PatchBank<'wad>(Vec<Patch<'wad>>);
+
+impl<'wad> PatchBank<'wad> {
+    /// Loads all the patches from a [`Wad`].
+    ///
+    /// Patch names are listed in the `PNAMES` lump, and each patch is loaded
+    /// from its corresponding lump.
+    pub fn load(wad: &'wad Wad) -> wad::Result<Self> {
+        let lump = wad.lump("PNAMES")?;
+        let mut cursor = Cursor::new(lump.data());
+
+        let count: usize = cursor
+            .read_u32::<LittleEndian>()
+            .map_err(|_| lump.error("bad patch list data"))?
+            .try_into()
+            .unwrap();
+        // The WAD is untrusted so clamp how much memory is pre-allocated.
+        let mut patches = Vec::with_capacity(count.clamp(0, 1024));
+
+        for _ in 0..count {
+            let mut name = [0u8; 8];
+            cursor
+                .read_exact(&mut name)
+                .map_err(|_| lump.error("bad patch list data"))?;
+
+            // Convert the name to uppercase like DOOM does. We have to emulate this because
+            // `doom.wad` and `doom2.wad` list `w94_1` in their `PNAMES`.
+            for i in 0..name.len() {
+                name[i] = name[i].to_ascii_uppercase();
+            }
+
+            let name = Lump::read_raw_name(&name)
+                .map_err(|name| lump.error(&format!("contains bad lump name {:?}", name)))?;
+
+            let patch = Patch::load(&wad.lump(name)?)?;
+            patches.push(patch);
+        }
+
+        Ok(Self(patches))
+    }
+}
+
+impl<'wad> Deref for PatchBank<'wad> {
+    type Target = Vec<Patch<'wad>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for PatchBank<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<'wad> IntoIterator for PatchBank<'wad> {
+    type Item = Patch<'wad>;
+    type IntoIter = vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a, 'wad> IntoIterator for &'a PatchBank<'wad> {
+    type Item = &'a Patch<'wad>;
+    type IntoIter = slice::Iter<'a, Patch<'wad>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, 'wad> IntoIterator for &'a mut PatchBank<'wad> {
+    type Item = &'a mut Patch<'wad>;
+    type IntoIter = slice::IterMut<'a, Patch<'wad>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -148,10 +241,13 @@ mod tests {
 
     #[test]
     fn load() {
-        let lumps = DOOM2_WAD.lumps_between("P_START", "P_END").unwrap();
+        let patches = PatchBank::load(&DOOM2_WAD).unwrap();
 
-        for lump in lumps.into_iter().filter(Lump::has_data) {
-            Patch::load(&lump).expect("failed to load");
-        }
+        assert_eq!(patches.len(), 469);
+        assert_eq!(patches[69].name(), "RW12_2");
+        assert_eq!(patches[420].name(), "RW25_3");
+
+        // Did we find the lowercased `w94_1` patch?
+        assert_eq!(patches[417].name(), "W94_1");
     }
 }
