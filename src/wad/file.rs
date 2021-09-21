@@ -92,7 +92,9 @@ impl WadFile {
             return Err(io::Error::new(io::ErrorKind::OutOfMemory, "file too large"));
         }
         let size: usize = size.try_into().unwrap();
-        let mut raw = Vec::with_capacity(size);
+        // Reserve an extra byte to avoid an undesirable doubling of capacity. See:
+        // https://users.rust-lang.org/t/vec-with-capacity-read-to-end-overallocation/65023
+        let mut raw = Vec::with_capacity(size + 1);
 
         file.rewind()?;
         file.read_to_end(&mut raw)?;
