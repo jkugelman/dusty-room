@@ -178,8 +178,8 @@ impl<'wad> PatchBank<'wad> {
 
             // Convert the name to uppercase like DOOM does. We have to emulate this because
             // `doom.wad` and `doom2.wad` list `w94_1` in their `PNAMES`.
-            for i in 0..name.len() {
-                name[i] = name[i].to_ascii_uppercase();
+            for ch in &mut name {
+                *ch = ch.to_ascii_uppercase();
             }
 
             let name = Lump::read_raw_name(&name)
