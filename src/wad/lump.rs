@@ -25,6 +25,43 @@ impl<'wad> Lump<'wad> {
         Self { file, name, data }
     }
 
+    /// Reads a lump name from a raw 8-byte, NUL padded byte array.
+    ///
+    /// This function strips trailing NULs and verifies that all characters are legal. Legal
+    /// characters are ASCII letters `A-Z`, digits `0-9`, and any of the punctuation `[]-_\`.
+    ///
+    /// # Errors
+    ///
+    /// If the name contains any illegal characters it is still converted into a string but is
+    /// returned as an `Err` instead.
+    pub fn read_raw_name(raw: &[u8; 8]) -> Result<&str, String> {
+        let mut legal = true;
+        let mut i = 0;
+
+        while i < raw.len() {
+            match raw[i] {
+                b'\0' => break,
+                b'A'..=b'Z' | b'0'..=b'9' | b'[' | b']' | b'-' | b'_' | b'\\' => {}
+                _ => {
+                    legal = false;
+                }
+            }
+
+            i += 1;
+        }
+
+        if i > 0 && legal {
+            // SAFETY: We've verified that there are only ASCII characters, which are by definition
+            // valid UTF-8.
+            Ok(unsafe { std::str::from_utf8_unchecked(&raw[..i]) })
+        } else {
+            // Convert the name into a string. It might not be valid UTF-8 so don't bother with
+            // `std::str::from_utf8`. Instead treat it as Latin-1, i.e. all bytes are valid and map
+            // 1-to-1 to the corresponding Unicode codepoints.
+            Err(raw[..i].iter().map(|&b| b as char).collect::<String>())
+        }
+    }
+
     /// The file containing the lump.
     pub fn file(&self) -> &'wad WadFile {
         self.file

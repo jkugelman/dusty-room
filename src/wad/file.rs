@@ -11,9 +11,6 @@ use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::{fmt, io};
 
-use lazy_static::lazy_static;
-use regex::Regex;
-
 use crate::wad::{self, Lump, Lumps, ResultExt};
 
 /// A single IWAD or PWAD.
@@ -60,10 +57,6 @@ struct LumpLocation {
     pub offset: usize,
     pub size: usize,
     pub name: String,
-}
-
-lazy_static! {
-    static ref LUMP_NAME_REGEX: Regex = Regex::new(r"^[A-Z0-9\[\]\-_\\]+$").unwrap();
 }
 
 impl WadFile {
@@ -179,20 +172,9 @@ impl WadFile {
             let offset = u32::from_le_bytes(entry[0..4].try_into().unwrap());
             let size = u32::from_le_bytes(entry[4..8].try_into().unwrap());
             let name: [u8; 8] = entry[8..16].try_into().unwrap();
-
-            // Strip trailing NULs and convert into a `String`. Stay away from `str::from_utf8` so
-            // we don't have to deal with UTF-8 decoding errors.
-            let name = name
-                .iter()
-                .take_while(|&&b| b != 0u8)
-                .map(|&b| b as char)
-                .collect::<String>();
-
-            // Verify that the lump name is all uppercase, digits, and a handful of acceptable
-            // symbols.
-            if !LUMP_NAME_REGEX.is_match(&name) {
-                return Err(format!("bad lump name {:?}", name));
-            }
+            let name = Lump::read_raw_name(&name)
+                .map_err(|name| format!("bad lump name {:?}", name))?
+                .to_owned();
 
             // Check lump bounds now so we don't have to later.
             let offset: usize = offset.try_into().unwrap();
