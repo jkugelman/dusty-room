@@ -1,4 +1,5 @@
-/fuzz-*.log
 /artifacts
 /corpus*
+/coverage
+/fuzz-*.log
 /target
