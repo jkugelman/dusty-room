@@ -8,15 +8,15 @@ use std::io::Write;
 
 use tempfile::NamedTempFile;
 
-use kdoom::assets::wad::Wad;
 use kdoom::assets::Assets;
+use kdoom::wad::Wad;
 
 fuzz_target!(|data: &[u8]| {
     let result: Result<(), Box<dyn Error>> = (|| {
         let mut file = NamedTempFile::new()?;
         file.as_file_mut().write_all(data)?;
 
-        let wad = Wad::open(file.path())?;
+        let wad = Wad::load(file.path())?;
         let _ = Assets::load(&wad)?;
 
         println!("{}: 👍 assets loaded", file.path().display());
