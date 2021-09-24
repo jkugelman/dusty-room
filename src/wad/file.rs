@@ -402,6 +402,14 @@ impl WadFile {
         Lumps::new(lumps)
     }
 
+    /// Retrieves all of the lumps in the file.
+    ///
+    /// An unordered dump of all lumps is rarely useful. This can be useful for debugging, or just
+    /// to inspect the contents of a WAD. It's not used by any of the asset loading code.
+    pub fn lumps(&self) -> impl Iterator<Item = Lump<'_>> + DoubleEndedIterator {
+        self.read_lumps(0..self.lump_indices.len()).into_iter()
+    }
+
     /// Creates a [`wad::Error::Malformed`] blaming this file.
     pub fn error(&self, desc: impl Into<Cow<'static, str>>) -> wad::Error {
         wad::Error::malformed(&self.path, desc)

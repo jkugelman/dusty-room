@@ -88,6 +88,22 @@ impl Wad {
         Ok(clone)
     }
 
+    /// Returns an iterator over all the files in this `Wad`.
+    ///
+    /// The files are in the order they were added: first the initial [`WadFile`], then each of the
+    /// patches in turn. You can [reverse] the iterator if you want to see the files in the order
+    /// lump lookups occur, from last to first.
+    ///
+    /// One should not normally need to call this function. It is mainly useful for debugging, or
+    /// just to get a peek under the hood.
+    ///
+    /// [reverse]: Iterator::rev
+    pub fn files(&self) -> impl Iterator<Item = &WadFile> + DoubleEndedIterator {
+        let initial = Some(Arc::as_ref(&self.initial)).into_iter();
+        let patches = self.patches.iter().map(Arc::as_ref);
+        initial.chain(patches)
+    }
+
     /// Retrieves a unique lump by name.
     ///
     /// Lumps in later files override lumps from earlier ones.

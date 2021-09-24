@@ -139,10 +139,10 @@ impl fmt::Debug for Lump<'_> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(
             fmt,
-            "{} from {} ({} bytes)",
+            "{} ({} bytes) from {}",
             self.name,
+            self.size(),
             self.file,
-            self.size()
         )
     }
 }
