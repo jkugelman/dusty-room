@@ -8,6 +8,98 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use crate::assets::{LoadError, ResultExt};
 use crate::wad::{self, Lump, Wad};
 
+/// A list of patches from the `PNAMES` lump.
+///
+/// The patches are all optional because sometimes `PNAMES` lists missing patches. The shareware
+/// version of `doom.wad` is missing the `TEXTURE2` textures from the registered game, yet `PNAMES`
+/// still lists all of the patches. It still loads because none of the textures in `TEXTURE1` use
+/// the missing patches.
+#[derive(Clone, Debug)]
+pub struct PatchBank<'wad>(Vec<Option<Patch<'wad>>>);
+
+impl<'wad> PatchBank<'wad> {
+    /// Loads all the patches from a [`Wad`].
+    ///
+    /// Patch names are listed in the `PNAMES` lump, and each patch is loaded from the lump of that
+    /// name.
+    pub fn load(wad: &'wad Wad) -> wad::Result<Self> {
+        let lump = wad.lump("PNAMES")?;
+
+        // Emulate a [`try` block] with an [IIFE].
+        // [`try` block]: https://doc.rust-lang.org/beta/unstable-book/language-features/try-blocks.html
+        // [IIFE]: https://en.wikipedia.org/wiki/Immediately_invoked_function_expression
+        (|| -> Result<Self, LoadError> {
+            let mut cursor = Cursor::new(lump.data());
+
+            let count = cursor.read_u32::<LittleEndian>()?;
+
+            // The WAD is untrusted so clamp how much memory is pre-allocated. Don't worry about
+            // overflow converting from `u32` to `usize`. The wrong capacity won't affect correctness.
+            let mut patches = Vec::with_capacity(count.clamp(0, 1024) as usize);
+
+            for _ in 0..count {
+                let mut name = [0u8; 8];
+                cursor.read_exact(&mut name)?;
+
+                // Convert the name to uppercase like DOOM does. We have to emulate this because
+                // `doom.wad` and `doom2.wad` include a lowercase `w94_1` in their `PNAMES`.
+                name.make_ascii_uppercase();
+
+                let name = Lump::read_raw_name(&name)
+                    .map_err(|name| lump.error(&format!("contains bad lump name {:?}", name)))?;
+
+                let lump = wad.try_lump(name)?;
+                let patch = lump.as_ref().map(Patch::load).transpose()?;
+                patches.push(patch);
+            }
+
+            Ok(Self(patches))
+        })()
+        .explain(|| lump.error("bad patch list data"))
+    }
+}
+
+impl<'wad> Deref for PatchBank<'wad> {
+    type Target = Vec<Option<Patch<'wad>>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for PatchBank<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<'wad> IntoIterator for PatchBank<'wad> {
+    type Item = Option<Patch<'wad>>;
+    type IntoIter = vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a, 'wad> IntoIterator for &'a PatchBank<'wad> {
+    type Item = &'a Option<Patch<'wad>>;
+    type IntoIter = slice::Iter<'a, Option<Patch<'wad>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, 'wad> IntoIterator for &'a mut PatchBank<'wad> {
+    type Item = &'a mut Option<Patch<'wad>>;
+    type IntoIter = slice::IterMut<'a, Option<Patch<'wad>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}
+
 /// A patch is an image that is used as the building block for a composite [`Texture`].
 ///
 /// [`Texture`]: crate::assets::Texture
@@ -149,98 +241,6 @@ impl<'wad> Patch<'wad> {
 impl fmt::Display for Patch<'_> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{} ({}x{})", self.name, self.width, self.height)
-    }
-}
-
-/// A list of patches from the `PNAMES` lump.
-///
-/// The patches are all optional because sometimes `PNAMES` lists missing patches. The shareware
-/// version of `doom.wad` is missing the `TEXTURE2` textures from the registered game, yet `PNAMES`
-/// still lists all of the patches. It still loads because none of the textures in `TEXTURE1` use
-/// the missing patches.
-#[derive(Clone, Debug)]
-pub struct PatchBank<'wad>(Vec<Option<Patch<'wad>>>);
-
-impl<'wad> PatchBank<'wad> {
-    /// Loads all the patches from a [`Wad`].
-    ///
-    /// Patch names are listed in the `PNAMES` lump, and each patch is loaded from the lump of that
-    /// name.
-    pub fn load(wad: &'wad Wad) -> wad::Result<Self> {
-        let lump = wad.lump("PNAMES")?;
-
-        // Emulate a [`try` block] with an [IIFE].
-        // [`try` block]: https://doc.rust-lang.org/beta/unstable-book/language-features/try-blocks.html
-        // [IIFE]: https://en.wikipedia.org/wiki/Immediately_invoked_function_expression
-        (|| -> Result<Self, LoadError> {
-            let mut cursor = Cursor::new(lump.data());
-
-            let count = cursor.read_u32::<LittleEndian>()?;
-
-            // The WAD is untrusted so clamp how much memory is pre-allocated. Don't worry about
-            // overflow converting from `u32` to `usize`. The wrong capacity won't affect correctness.
-            let mut patches = Vec::with_capacity(count.clamp(0, 1024) as usize);
-
-            for _ in 0..count {
-                let mut name = [0u8; 8];
-                cursor.read_exact(&mut name)?;
-
-                // Convert the name to uppercase like DOOM does. We have to emulate this because
-                // `doom.wad` and `doom2.wad` include a lowercase `w94_1` in their `PNAMES`.
-                name.make_ascii_uppercase();
-
-                let name = Lump::read_raw_name(&name)
-                    .map_err(|name| lump.error(&format!("contains bad lump name {:?}", name)))?;
-
-                let lump = wad.try_lump(name)?;
-                let patch = lump.as_ref().map(Patch::load).transpose()?;
-                patches.push(patch);
-            }
-
-            Ok(Self(patches))
-        })()
-        .explain(|| lump.error("bad patch list data"))
-    }
-}
-
-impl<'wad> Deref for PatchBank<'wad> {
-    type Target = Vec<Option<Patch<'wad>>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for PatchBank<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl<'wad> IntoIterator for PatchBank<'wad> {
-    type Item = Option<Patch<'wad>>;
-    type IntoIter = vec::IntoIter<Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
-impl<'a, 'wad> IntoIterator for &'a PatchBank<'wad> {
-    type Item = &'a Option<Patch<'wad>>;
-    type IntoIter = slice::Iter<'a, Option<Patch<'wad>>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
-impl<'a, 'wad> IntoIterator for &'a mut PatchBank<'wad> {
-    type Item = &'a mut Option<Patch<'wad>>;
-    type IntoIter = slice::IterMut<'a, Option<Patch<'wad>>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter_mut()
     }
 }
 
