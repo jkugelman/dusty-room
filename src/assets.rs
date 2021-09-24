@@ -1,4 +1,5 @@
 pub use assets::*;
+pub(self) use error::*;
 pub use flat::*;
 pub use geom::*;
 pub use map::*;
@@ -8,6 +9,7 @@ pub use texture::*;
 
 #[allow(clippy::module_inception)]
 mod assets;
+mod error;
 mod flat;
 mod geom;
 mod map;

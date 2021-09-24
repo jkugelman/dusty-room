@@ -1,10 +1,11 @@
 use std::convert::TryInto;
-use std::io::{self, Cursor, Read, Seek, SeekFrom};
+use std::io::{Cursor, Read, Seek, SeekFrom};
 use std::ops::{Deref, DerefMut};
 use std::{fmt, slice, vec};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
+use crate::assets::{LoadError, ResultExt};
 use crate::wad::{self, Lump, Wad};
 
 /// A patch is an image that is used as the building block for a composite [`Texture`].
@@ -36,7 +37,7 @@ impl<'wad> Patch<'wad> {
         // Emulate a [`try` block] with an [IIFE].
         // [`try` block]: https://doc.rust-lang.org/beta/unstable-book/language-features/try-blocks.html
         // [IIFE]: https://en.wikipedia.org/wiki/Immediately_invoked_function_expression
-        (|| -> io::Result<Self> {
+        (|| -> Result<Self, LoadError> {
             let mut cursor = Cursor::new(lump.data());
 
             let name = lump.name().to_owned();
@@ -45,64 +46,18 @@ impl<'wad> Patch<'wad> {
             let top = cursor.read_i16::<LittleEndian>()?;
             let left = cursor.read_i16::<LittleEndian>()?;
 
-            // Read column offsets.
-            // The WAD is untrusted so clamp how much memory is pre-allocated.
+            // Read column offsets. The WAD is untrusted so clamp how much memory is pre-allocated.
             let mut column_offsets = Vec::with_capacity(width.clamp(0, 512).into());
             for _ in 0..width {
                 column_offsets.push(cursor.read_u32::<LittleEndian>()?);
             }
 
-            // Read columns.
-            // The WAD is untrusted so clamp how much memory is pre-allocated.
+            // Read columns. The WAD is untrusted so clamp how much memory is pre-allocated.
             let mut columns = Vec::with_capacity(width.clamp(0, 512).into());
-
             for column_offset in column_offsets {
                 cursor.seek(SeekFrom::Start(column_offset.into()))?;
-
-                // Read posts.
-                let mut posts = Vec::new();
-                let mut last_y_offset = None;
-
-                loop {
-                    let y_offset = match (cursor.read_u8()? as u16, last_y_offset) {
-                        // The end of the column is marked by an offset of 255.
-                        (255, _) => {
-                            break;
-                        }
-
-                        // Handle so-called ["tall patches"]: Since posts are saved top to bottom, a
-                        // post's Y offset is normally greater than the last post's. If it's not
-                        // then we'll add them together. This enables Y offsets larger than the
-                        // traditional limit of 254.
-                        //
-                        // ["tall patches"]: https://doomwiki.org/wiki/Picture_format#Tall_patches
-                        (y_offset, Some(last_y_offset)) if y_offset <= last_y_offset => {
-                            last_y_offset + y_offset
-                        }
-
-                        // The common case.
-                        (y_offset, _) => y_offset,
-                    };
-                    let length: usize = cursor.read_u8()?.into();
-
-                    // Skip unused byte.
-                    let _ = cursor.read_u8()?;
-
-                    // Save memory by having pixel data be a direct slice from the lump.
-                    let start: usize = cursor.position().try_into().unwrap();
-                    cursor.seek(SeekFrom::Current(length.try_into().unwrap()))?;
-                    let end: usize = cursor.position().try_into().unwrap();
-                    use io::ErrorKind::UnexpectedEof;
-                    let pixels = &lump.data().get(start..end).ok_or(UnexpectedEof)?;
-
-                    // Skip unused byte.
-                    let _ = cursor.read_u8()?;
-
-                    posts.push(Post { y_offset, pixels });
-                    last_y_offset = Some(y_offset);
-                }
-
-                columns.push(Column { posts });
+                let column = Self::read_column(&mut cursor, lump)?;
+                columns.push(column);
             }
 
             Ok(Self {
@@ -114,7 +69,55 @@ impl<'wad> Patch<'wad> {
                 columns,
             })
         })()
-        .map_err(|_| lump.error("bad patch data"))
+        .explain(|| lump.error("bad patch data"))
+    }
+
+    fn read_column(
+        cursor: &mut Cursor<&[u8]>,
+        lump: &Lump<'wad>,
+    ) -> Result<Column<'wad>, LoadError> {
+        let mut posts = Vec::new();
+        let mut last_y_offset = None;
+
+        loop {
+            let y_offset = match (cursor.read_u8()? as u16, last_y_offset) {
+                // The end of the column is marked by an offset of 255.
+                (255, _) => {
+                    break;
+                }
+
+                // Handle so-called ["tall patches"]: Since posts are saved top to bottom, a
+                // post's Y offset is normally greater than the last post's. If it's not
+                // then we'll add them together. This enables Y offsets larger than the
+                // traditional limit of 254.
+                //
+                // ["tall patches"]: https://doomwiki.org/wiki/Picture_format#Tall_patches
+                (y_offset, Some(last_y_offset)) if y_offset <= last_y_offset => {
+                    last_y_offset + y_offset
+                }
+
+                // The common case.
+                (y_offset, _) => y_offset,
+            };
+            let length: usize = cursor.read_u8()?.into();
+
+            // Skip unused byte.
+            let _ = cursor.read_u8()?;
+
+            // Save memory by having pixel data be a direct slice from the lump.
+            let start: usize = cursor.position().try_into().unwrap();
+            cursor.seek(SeekFrom::Current(length.try_into().unwrap()))?;
+            let end: usize = cursor.position().try_into().unwrap();
+            let pixels = &lump.data().get(start..end).ok_or(LoadError::OutOfBounds)?;
+
+            // Skip unused byte.
+            let _ = cursor.read_u8()?;
+
+            posts.push(Post { y_offset, pixels });
+            last_y_offset = Some(y_offset);
+        }
+
+        Ok(Column { posts })
     }
 
     /// The patch's name.
@@ -161,39 +164,42 @@ pub struct PatchBank<'wad>(Vec<Option<Patch<'wad>>>);
 impl<'wad> PatchBank<'wad> {
     /// Loads all the patches from a [`Wad`].
     ///
-    /// Patch names are listed in the `PNAMES` lump, and each patch is loaded
-    /// from its corresponding lump.
+    /// Patch names are listed in the `PNAMES` lump, and each patch is loaded from the lump of that
+    /// name.
     pub fn load(wad: &'wad Wad) -> wad::Result<Self> {
         let lump = wad.lump("PNAMES")?;
-        let mut cursor = Cursor::new(lump.data());
 
-        let count: usize = cursor
-            .read_u32::<LittleEndian>()
-            .map_err(|_| lump.error("bad patch list data"))?
-            .try_into()
-            .unwrap();
-        // The WAD is untrusted so clamp how much memory is pre-allocated.
-        let mut patches = Vec::with_capacity(count.clamp(0, 1024));
+        // Emulate a [`try` block] with an [IIFE].
+        // [`try` block]: https://doc.rust-lang.org/beta/unstable-book/language-features/try-blocks.html
+        // [IIFE]: https://en.wikipedia.org/wiki/Immediately_invoked_function_expression
+        (|| -> Result<Self, LoadError> {
+            let mut cursor = Cursor::new(lump.data());
 
-        for _ in 0..count {
-            let mut name = [0u8; 8];
-            cursor
-                .read_exact(&mut name)
-                .map_err(|_| lump.error("bad patch list data"))?;
+            let count = cursor.read_u32::<LittleEndian>()?;
 
-            // Convert the name to uppercase like DOOM does. We have to emulate this because
-            // `doom.wad` and `doom2.wad` include a lowercase `w94_1` in their `PNAMES`.
-            name.make_ascii_uppercase();
+            // The WAD is untrusted so clamp how much memory is pre-allocated. Don't worry about
+            // overflow converting from `u32` to `usize`. The wrong capacity won't affect correctness.
+            let mut patches = Vec::with_capacity(count.clamp(0, 1024) as usize);
 
-            let name = Lump::read_raw_name(&name)
-                .map_err(|name| lump.error(&format!("contains bad lump name {:?}", name)))?;
+            for _ in 0..count {
+                let mut name = [0u8; 8];
+                cursor.read_exact(&mut name)?;
 
-            let lump = wad.try_lump(name)?;
-            let patch = lump.as_ref().map(Patch::load).transpose()?;
-            patches.push(patch);
-        }
+                // Convert the name to uppercase like DOOM does. We have to emulate this because
+                // `doom.wad` and `doom2.wad` include a lowercase `w94_1` in their `PNAMES`.
+                name.make_ascii_uppercase();
 
-        Ok(Self(patches))
+                let name = Lump::read_raw_name(&name)
+                    .map_err(|name| lump.error(&format!("contains bad lump name {:?}", name)))?;
+
+                let lump = wad.try_lump(name)?;
+                let patch = lump.as_ref().map(Patch::load).transpose()?;
+                patches.push(patch);
+            }
+
+            Ok(Self(patches))
+        })()
+        .explain(|| lump.error("bad patch list data"))
     }
 }
 

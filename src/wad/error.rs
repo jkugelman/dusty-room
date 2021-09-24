@@ -68,7 +68,7 @@ impl Error {
     }
 }
 
-/// Import this trait to add an extension methods to convert a [`std::io::Result`] into a
+/// Import this trait to add an extension method to convert a [`std::io::Result`] into a
 /// [`wad::Result`].
 pub(super) trait ResultExt<T> {
     /// Maps a [`std::io::Error`] into a [`wad::Error::Io`] by adding a file path for context.
