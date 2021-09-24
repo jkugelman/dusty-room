@@ -150,8 +150,13 @@ impl fmt::Display for Patch<'_> {
 }
 
 /// A list of patches from the `PNAMES` lump.
+///
+/// The patches are all optional because sometimes `PNAMES` lists missing patches. The shareware
+/// version of `doom.wad` is missing the `TEXTURE2` textures from the registered game, yet `PNAMES`
+/// still lists all of the patches. It still loads because none of the textures in `TEXTURE1` use
+/// the missing patches.
 #[derive(Clone, Debug)]
-pub struct PatchBank<'wad>(Vec<Patch<'wad>>);
+pub struct PatchBank<'wad>(Vec<Option<Patch<'wad>>>);
 
 impl<'wad> PatchBank<'wad> {
     /// Loads all the patches from a [`Wad`].
@@ -177,15 +182,14 @@ impl<'wad> PatchBank<'wad> {
                 .map_err(|_| lump.error("bad patch list data"))?;
 
             // Convert the name to uppercase like DOOM does. We have to emulate this because
-            // `doom.wad` and `doom2.wad` list `w94_1` in their `PNAMES`.
-            for ch in &mut name {
-                *ch = ch.to_ascii_uppercase();
-            }
+            // `doom.wad` and `doom2.wad` include a lowercase `w94_1` in their `PNAMES`.
+            name.make_ascii_uppercase();
 
             let name = Lump::read_raw_name(&name)
                 .map_err(|name| lump.error(&format!("contains bad lump name {:?}", name)))?;
 
-            let patch = Patch::load(&wad.lump(name)?)?;
+            let lump = wad.try_lump(name)?;
+            let patch = lump.as_ref().map(Patch::load).transpose()?;
             patches.push(patch);
         }
 
@@ -194,7 +198,7 @@ impl<'wad> PatchBank<'wad> {
 }
 
 impl<'wad> Deref for PatchBank<'wad> {
-    type Target = Vec<Patch<'wad>>;
+    type Target = Vec<Option<Patch<'wad>>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -208,7 +212,7 @@ impl DerefMut for PatchBank<'_> {
 }
 
 impl<'wad> IntoIterator for PatchBank<'wad> {
-    type Item = Patch<'wad>;
+    type Item = Option<Patch<'wad>>;
     type IntoIter = vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -217,8 +221,8 @@ impl<'wad> IntoIterator for PatchBank<'wad> {
 }
 
 impl<'a, 'wad> IntoIterator for &'a PatchBank<'wad> {
-    type Item = &'a Patch<'wad>;
-    type IntoIter = slice::Iter<'a, Patch<'wad>>;
+    type Item = &'a Option<Patch<'wad>>;
+    type IntoIter = slice::Iter<'a, Option<Patch<'wad>>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -226,8 +230,8 @@ impl<'a, 'wad> IntoIterator for &'a PatchBank<'wad> {
 }
 
 impl<'a, 'wad> IntoIterator for &'a mut PatchBank<'wad> {
-    type Item = &'a mut Patch<'wad>;
-    type IntoIter = slice::IterMut<'a, Patch<'wad>>;
+    type Item = &'a mut Option<Patch<'wad>>;
+    type IntoIter = slice::IterMut<'a, Option<Patch<'wad>>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
@@ -244,10 +248,20 @@ mod tests {
         let patches = PatchBank::load(&DOOM2_WAD).unwrap();
 
         assert_eq!(patches.len(), 469);
-        assert_eq!(patches[69].name(), "RW12_2");
-        assert_eq!(patches[420].name(), "RW25_3");
+        assert_eq!(patches[69].as_ref().unwrap().name(), "RW12_2");
+        assert_eq!(patches[420].as_ref().unwrap().name(), "RW25_3");
 
         // Did we find the lowercased `w94_1` patch?
-        assert_eq!(patches[417].name(), "W94_1");
+        assert_eq!(patches[417].as_ref().unwrap().name(), "W94_1");
+    }
+
+    #[test]
+    fn missing() {
+        let patches = PatchBank::load(&DOOM_WAD).unwrap();
+
+        assert_matches!(patches[161], Some(_));
+        assert_matches!(patches[162], Some(_));
+        assert_matches!(patches[163], None);
+        assert_matches!(patches[164], None);
     }
 }
