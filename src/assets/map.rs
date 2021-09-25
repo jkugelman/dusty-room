@@ -23,11 +23,11 @@ impl Map {
         let lumps = lumps.unwrap();
 
         let name = name.to_owned();
-        let things = Self::read_things(lumps.get_with_name(1, "THINGS")?);
-        let vertices = Self::read_vertices(lumps.get_with_name(4, "VERTEXES")?);
-        let sectors = Self::read_sectors(lumps.get_with_name(8, "SECTORS")?);
-        let sides = Self::read_sides(lumps.get_with_name(3, "SIDEDEFS")?);
-        let lines = Self::read_lines(lumps.get_with_name(2, "LINEDEFS")?);
+        let things = Self::read_things(lumps[1].expect_name("THINGS")?);
+        let vertices = Self::read_vertices(lumps[4].expect_name("VERTEXES")?);
+        let sectors = Self::read_sectors(lumps[8].expect_name("SECTORS")?);
+        let sides = Self::read_sides(lumps[3].expect_name("SIDEDEFS")?);
+        let lines = Self::read_lines(lumps[2].expect_name("LINEDEFS")?);
 
         Ok(Some(Map {
             name,

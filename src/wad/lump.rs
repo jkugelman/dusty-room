@@ -198,19 +198,6 @@ impl<'wad> Lumps<'wad> {
         self.0.last().unwrap()
     }
 
-    /// Gets the lump at `index` and checks that it has the expected name.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the lump has the wrong name.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the index is out of bounds.
-    pub fn get_with_name(&self, index: usize, name: &str) -> wad::Result<&'wad Lump> {
-        self[index].expect_name(name)
-    }
-
     /// Creates a [`wad::Error::Malformed`] blaming this block.
     pub fn error(&self, desc: impl Into<Cow<'static, str>>) -> wad::Error {
         self.first().file.error(desc)
