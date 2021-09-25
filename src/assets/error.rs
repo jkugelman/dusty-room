@@ -6,7 +6,7 @@ use crate::wad;
 ///
 /// A lot of the asset loading code uses [`Cursor`]s to parse byte slices. `LoadError` reduces the
 /// hassle of catching all of the [`io::Error`]s. They're not actual I/O errors--they're all just
-/// `UnexpectedEof`--so `LoadError` converts them all to `OutOfBounds`. The loaders can then call
+/// `UnexpectedEof`--so `LoadError` converts them all to `BadLump`. The loaders can then call
 /// [`explain`] from one place to generate a `[wad::Error]` with a generic error message like "bad
 /// lump data" or whatever.
 ///
@@ -15,8 +15,9 @@ use crate::wad;
 ///
 /// [`Cursor`]: io::Cursor
 /// [`explain`]: ResultExt::explain
+#[derive(Debug)]
 pub(super) enum LoadError {
-    OutOfBounds,
+    BadLump,
     Wad(wad::Error),
 }
 
@@ -31,7 +32,7 @@ impl<T> ResultExt<T> for Result<T, LoadError> {
     fn explain(self, desc: impl FnOnce() -> wad::Error) -> wad::Result<T> {
         match self {
             Ok(value) => Ok(value),
-            Err(LoadError::OutOfBounds) => Err(desc()),
+            Err(LoadError::BadLump) => Err(desc()),
             Err(LoadError::Wad(err)) => Err(err),
         }
     }
@@ -40,7 +41,7 @@ impl<T> ResultExt<T> for Result<T, LoadError> {
 impl From<io::Error> for LoadError {
     fn from(err: io::Error) -> Self {
         match err.kind() {
-            io::ErrorKind::UnexpectedEof => Self::OutOfBounds,
+            io::ErrorKind::UnexpectedEof => Self::BadLump,
             _ => {
                 panic!("std::io::Cursor returned unexpected {}", err);
             }
