@@ -1,12 +1,12 @@
 use std::convert::TryInto;
-use std::io::{Cursor, Read, Seek, SeekFrom};
+use std::io::{Cursor, Seek, SeekFrom};
 use std::ops::{Deref, DerefMut};
 use std::{fmt, slice, vec};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
 use crate::assets::{LoadError, ResultExt};
-use crate::wad::{self, Lump, Wad};
+use crate::wad::{self, read_name, Lump, Wad};
 
 /// A list of patches from the `PNAMES` lump.
 ///
@@ -38,16 +38,8 @@ impl<'wad> PatchBank<'wad> {
             let mut patches = Vec::with_capacity(count.clamp(0, 1024) as usize);
 
             for _ in 0..count {
-                let mut name = [0u8; 8];
-                cursor.read_exact(&mut name)?;
-
-                // Convert the name to uppercase like DOOM does. We have to emulate this because
-                // `doom.wad` and `doom2.wad` include a lowercase `w94_1` in their `PNAMES`.
-                name.make_ascii_uppercase();
-
-                let name = Lump::read_raw_name(&name)
+                let name = read_name(&mut cursor)?
                     .map_err(|name| lump.error(&format!("contains bad lump name {:?}", name)))?;
-
                 let lump = wad.try_lump(name)?;
                 let patch = lump.as_ref().map(Patch::load).transpose()?;
                 patches.push(patch);

@@ -11,6 +11,8 @@ use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::{fmt, io};
 
+use crate::wad::parse_name;
+use crate::wad::NameExt;
 use crate::wad::{self, Lump, Lumps, ResultExt};
 
 /// A single IWAD or PWAD.
@@ -174,9 +176,11 @@ impl WadFile {
             let offset = u32::from_le_bytes(entry[0..4].try_into().unwrap());
             let size = u32::from_le_bytes(entry[4..8].try_into().unwrap());
             let name: [u8; 8] = entry[8..16].try_into().unwrap();
-            let name = Lump::read_raw_name(&name)
-                .map_err(|name| format!("bad lump name {:?}", name))?
-                .to_owned();
+            let name = match parse_name(&name) {
+                Ok(name) if name.is_legal() => Ok(name.to_owned()),
+                Ok(name) => Err(format!("bad lump name {:?}", name)),
+                Err(name) => Err(format!("bad lump name {:?}", name)),
+            }?;
 
             // Check lump bounds now so we don't have to later.
             let offset: usize = offset.try_into().unwrap();
@@ -358,9 +362,15 @@ impl WadFile {
     ///
     /// [Unofficial Doom Specs]: http://edge.sourceforge.net/edit_guide/doom_specs.htm
     fn try_lump_index(&self, name: &str) -> wad::Result<Option<usize>> {
-        let indices: Option<&[usize]> = self.lump_indices.get(name).map(Vec::as_slice);
+        let mut name = Cow::from(name);
 
-        match indices {
+        // Convert the name to uppercase like DOOM does. We have to emulate this because
+        // `doom.wad` and `doom2.wad` include a lowercase `w94_1` in their `PNAMES`.
+        if name.contains(|ch: char| ch.is_ascii_lowercase()) {
+            name.to_mut().make_ascii_uppercase();
+        }
+
+        match self.lump_indices.get(name.as_ref()).map(Vec::as_slice) {
             // Not found.
             None => Ok(None),
 

@@ -1,6 +1,5 @@
-use std::collections::{btree_map, BTreeMap};
+use std::collections::BTreeMap;
 use std::fmt;
-use std::ops::{Deref, DerefMut};
 
 use ndarray::ArrayView2;
 
@@ -9,12 +8,6 @@ use crate::wad::{self, Lump, Wad};
 /// A list of floor and ceiling textures, indexed by name.
 #[derive(Clone)]
 pub struct FlatBank<'wad>(BTreeMap<&'wad str, Flat<'wad>>);
-
-impl fmt::Debug for FlatBank<'_> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{:?}", self.0.values())
-    }
-}
 
 impl<'wad> FlatBank<'wad> {
     /// Loads all the flats from a [`Wad`].
@@ -39,46 +32,15 @@ impl<'wad> FlatBank<'wad> {
 
         Ok(Self(flats))
     }
-}
 
-impl<'wad> Deref for FlatBank<'wad> {
-    type Target = BTreeMap<&'wad str, Flat<'wad>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+    pub fn get(&self, name: &str) -> Option<&Flat<'wad>> {
+        self.0.get(name)
     }
 }
 
-impl DerefMut for FlatBank<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl<'wad> IntoIterator for FlatBank<'wad> {
-    type Item = (&'wad str, Flat<'wad>);
-    type IntoIter = btree_map::IntoIter<&'wad str, Flat<'wad>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
-impl<'a, 'wad> IntoIterator for &'a FlatBank<'wad> {
-    type Item = (&'a &'wad str, &'a Flat<'wad>);
-    type IntoIter = btree_map::Iter<'a, &'wad str, Flat<'wad>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
-impl<'a, 'wad> IntoIterator for &'a mut FlatBank<'wad> {
-    type Item = (&'a &'wad str, &'a mut Flat<'wad>);
-    type IntoIter = btree_map::IterMut<'a, &'wad str, Flat<'wad>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter_mut()
+impl fmt::Debug for FlatBank<'_> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{:?}", self.0.values())
     }
 }
 
@@ -104,7 +66,7 @@ impl<'wad> Flat<'wad> {
     }
 
     /// Flat name, the name of its [`Lump`].
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &'wad str {
         self.name
     }
 
@@ -140,8 +102,8 @@ mod tests {
     fn load() {
         let flats = FlatBank::load(&DOOM2_WAD).unwrap();
 
-        assert!(flats.contains_key("CEIL3_5"));
-        assert!(flats.contains_key("GATE2"));
-        assert!(flats.contains_key("NUKAGE1"));
+        assert_matches!(flats.get("CEIL3_5"), Some(_));
+        assert_matches!(flats.get("GATE2"), Some(_));
+        assert_matches!(flats.get("NUKAGE1"), Some(_));
     }
 }
