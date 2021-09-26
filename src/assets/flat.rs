@@ -40,7 +40,9 @@ impl<'wad> FlatBank<'wad> {
 
 impl fmt::Debug for FlatBank<'_> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{:?}", self.0.values())
+        let Self(flats) = self;
+
+        write!(fmt, "{:?}", flats.values())
     }
 }
 
@@ -83,7 +85,9 @@ impl<'wad> Flat<'wad> {
 
 impl fmt::Debug for Flat<'_> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.name)
+        let Self { name, pixels: _ } = self;
+
+        write!(fmt, "{}", name)
     }
 }
 

@@ -48,7 +48,16 @@ impl Map {
 
 impl fmt::Debug for Map {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{:?}", self.name)
+        let Self {
+            name,
+            _things,
+            _vertices,
+            _sides,
+            _lines,
+            _sectors,
+        } = self;
+
+        write!(fmt, "{:?}", name)
     }
 }
 

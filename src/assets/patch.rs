@@ -217,12 +217,21 @@ impl<'wad> Patch<'wad> {
 
 impl fmt::Debug for Patch<'_> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            name,
+            width,
+            height,
+            x,
+            y,
+            columns: _,
+        } = self;
+
         fmt.debug_struct("Patch")
-            .field("name", &self.name)
-            .field("width", &self.width)
-            .field("height", &self.height)
-            .field("x", &self.x)
-            .field("y", &self.y)
+            .field("name", &name)
+            .field("width", &width)
+            .field("height", &height)
+            .field("x", &x)
+            .field("y", &y)
             .finish()
     }
 }
@@ -235,9 +244,11 @@ impl fmt::Display for Patch<'_> {
 
 impl fmt::Debug for Post<'_> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let Self { y_offset, pixels } = self;
+
         fmt.debug_struct("Post")
-            .field("y_offset", &self.y_offset)
-            .field("height", &self.pixels.len())
+            .field("y_offset", &y_offset)
+            .field("height", &pixels.len())
             .finish()
     }
 }

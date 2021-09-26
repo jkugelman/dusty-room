@@ -428,12 +428,20 @@ impl WadFile {
 
 impl fmt::Debug for WadFile {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let Self {
+            path,
+            raw,
+            kind,
+            lump_locations,
+            lump_indices,
+        } = self;
+
         fmt.debug_struct("WadFile")
-            .field("path", &self.path)
-            .field("raw", &format!("<{} bytes>", self.raw.len()))
-            .field("kind", &self.kind)
-            .field("lump_locations", &self.lump_locations)
-            .field("lump_indices", &self.lump_indices)
+            .field("path", &path)
+            .field("raw", &format!("<{} bytes>", raw.len()))
+            .field("kind", &kind)
+            .field("lump_locations", &lump_locations)
+            .field("lump_indices", &lump_indices)
             .finish()
     }
 }

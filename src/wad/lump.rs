@@ -100,13 +100,9 @@ impl<'wad> Lump<'wad> {
 
 impl fmt::Debug for Lump<'_> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            fmt,
-            "{} ({} bytes) from {}",
-            self.name,
-            self.size(),
-            self.file,
-        )
+        let Self { file, name, data } = self;
+
+        write!(fmt, "{} ({} bytes) from {}", name, data.len(), file)
     }
 }
 
