@@ -20,52 +20,44 @@ impl<'wad> TextureBank<'wad> {
         let mut textures = BTreeMap::new();
 
         for lump in Self::texture_lumps(wad)? {
-            Self::load_from(&lump, &mut textures, &patches)?;
+            Self::load_from(&lump, &mut textures, &patches)
+                .explain(|| lump.error("bad texture data"))?;
         }
 
         Ok(Self(textures))
     }
 
     fn texture_lumps(wad: &'wad Wad) -> wad::Result<Vec<Lump<'wad>>> {
-        let mut lumps = Vec::new();
-        lumps.push(wad.lump("TEXTURE1")?);
-        if let Some(lump) = wad.try_lump("TEXTURE2")? {
-            lumps.push(lump);
-        }
-        Ok(lumps)
+        let iter = Some(wad.lump("TEXTURE1")?).into_iter();
+        let iter = iter.chain(wad.try_lump("TEXTURE2")?);
+        Ok(iter.collect())
     }
 
     fn load_from(
         lump: &Lump<'wad>,
         textures: &mut BTreeMap<&'wad str, Texture<'wad>>,
         patch_bank: &PatchBank<'wad>,
-    ) -> wad::Result<()> {
-        // Emulate a [`try` block] with an [IIFE].
-        // [`try` block]: https://doc.rust-lang.org/beta/unstable-book/language-features/try-blocks.html
-        // [IIFE]: https://en.wikipedia.org/wiki/Immediately_invoked_function_expression
-        (|| -> Result<(), LoadError> {
-            let mut cursor = Cursor::new(lump.data());
+    ) -> Result<(), LoadError> {
+        let mut cursor = Cursor::new(lump.data());
 
-            let count = cursor.read_u32::<LittleEndian>()?;
+        let count = cursor.read_u32::<LittleEndian>()?;
 
-            // Read texture offsets. The WAD is untrusted so clamp how much memory is pre-allocated.
-            // Don't worry about overflow converting from `u32` to `usize`. The wrong capacity won't
-            // affect correctness.
-            let mut offsets = Vec::with_capacity(count.clamp(0, 1024) as usize);
-            for _ in 0..count {
-                offsets.push(cursor.read_u32::<LittleEndian>()?);
-            }
+        // Read texture offsets. The WAD is untrusted so clamp how much memory is pre-allocated.
+        // Don't worry about overflow converting from `u32` to `usize`. The wrong capacity won't
+        // affect correctness.
+        let mut offsets = Vec::with_capacity(count.clamp(0, 1024) as usize);
+        for _ in 0..count {
+            offsets.push(cursor.read_u32::<LittleEndian>()?);
+        }
 
-            // Read textures.
-            for offset in offsets {
-                cursor.seek(SeekFrom::Start(offset.into()))?;
-                let texture = Texture::load(lump, &mut cursor, patch_bank)?;
-                textures.insert(texture.name(), texture);
-            }
+        // Read textures.
+        for offset in offsets {
+            cursor.seek(SeekFrom::Start(offset.into()))?;
+            let texture = Texture::load(lump, &mut cursor, patch_bank)?;
+            textures.insert(texture.name(), texture);
+        }
 
-            Ok(())
-        })()
-        .explain(|| lump.error("bad texture data"))
+        Ok(())
     }
 
     /// Retrieves a texture by name.
