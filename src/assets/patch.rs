@@ -25,31 +25,22 @@ impl<'wad> PatchBank<'wad> {
     /// name.
     pub fn load(wad: &'wad Wad) -> wad::Result<Self> {
         let lump = wad.lump("PNAMES")?;
+        let patches = Self::load_impl(&lump, wad).explain(|| lump.error("bad patch list data"))?;
+        Ok(patches)
+    }
 
-        // Emulate a [`try` block] with an [IIFE].
-        // [`try` block]: https://doc.rust-lang.org/beta/unstable-book/language-features/try-blocks.html
-        // [IIFE]: https://en.wikipedia.org/wiki/Immediately_invoked_function_expression
-        (|| -> Result<Self, LoadError> {
-            let mut cursor = Cursor::new(lump.data());
-
-            let count = cursor.read_u32::<LittleEndian>()?;
-
-            // The WAD is untrusted so clamp how much memory is pre-allocated. Don't worry about
-            // overflow converting from `u32` to `usize`. The wrong capacity won't affect
-            // correctness.
-            let mut patches = Vec::with_capacity(count.clamp(0, 1024) as usize);
-
-            for _ in 0..count {
-                let name = read_name(&mut cursor)?
-                    .map_err(|name| lump.error(&format!("contains bad lump name {:?}", name)))?;
-                let lump = wad.try_lump(name)?;
-                let patch = lump.as_ref().map(Patch::load).transpose()?.map(Arc::new);
-                patches.push((name, patch));
-            }
-
-            Ok(Self(patches))
-        })()
-        .explain(|| lump.error("bad patch list data"))
+    fn load_impl(lump: &Lump<'wad>, wad: &'wad Wad) -> Result<Self, LoadError> {
+        let mut cursor = Cursor::new(lump.data());
+        let count = cursor.read_u32::<LittleEndian>()?;
+        let mut patches = Vec::with_capacity(count.clamp(0, 1024) as usize);
+        for _ in 0..count {
+            let name = read_name(&mut cursor)?
+                .map_err(|name| lump.error(&format!("contains bad lump name {:?}", name)))?;
+            let lump = wad.try_lump(name)?;
+            let patch = lump.as_ref().map(Patch::load).transpose()?.map(Arc::new);
+            patches.push((name, patch));
+        }
+        Ok(Self(patches))
     }
 
     /// The number of patches.
@@ -106,42 +97,40 @@ struct Post<'wad> {
 
 impl<'wad> Patch<'wad> {
     pub fn load(lump: &Lump<'wad>) -> wad::Result<Self> {
-        // Emulate a [`try` block] with an [IIFE].
-        // [`try` block]: https://doc.rust-lang.org/beta/unstable-book/language-features/try-blocks.html
-        // [IIFE]: https://en.wikipedia.org/wiki/Immediately_invoked_function_expression
-        (|| -> Result<Self, LoadError> {
-            let mut cursor = Cursor::new(lump.data());
+        Self::load_impl(lump).explain(|| lump.error("bad patch data"))
+    }
 
-            let name = lump.name();
-            let width = cursor.read_u16::<LittleEndian>()?;
-            let height = cursor.read_u16::<LittleEndian>()?;
-            let y = cursor.read_i16::<LittleEndian>()?;
-            let x = cursor.read_i16::<LittleEndian>()?;
+    fn load_impl(lump: &Lump<'wad>) -> Result<Self, LoadError> {
+        let mut cursor = Cursor::new(lump.data());
 
-            // Read column offsets. The WAD is untrusted so clamp how much memory is pre-allocated.
-            let mut column_offsets = Vec::with_capacity(width.clamp(0, 512).into());
-            for _ in 0..width {
-                column_offsets.push(cursor.read_u32::<LittleEndian>()?);
-            }
+        let name = lump.name();
+        let width = cursor.read_u16::<LittleEndian>()?;
+        let height = cursor.read_u16::<LittleEndian>()?;
+        let y = cursor.read_i16::<LittleEndian>()?;
+        let x = cursor.read_i16::<LittleEndian>()?;
 
-            // Read columns. The WAD is untrusted so clamp how much memory is pre-allocated.
-            let mut columns = Vec::with_capacity(width.clamp(0, 512).into());
-            for column_offset in column_offsets {
-                cursor.seek(SeekFrom::Start(column_offset.into()))?;
-                let column = Self::read_column(lump, &mut cursor)?;
-                columns.push(column);
-            }
+        // Read column offsets. The WAD is untrusted so clamp how much memory is pre-allocated.
+        let mut column_offsets = Vec::with_capacity(width.clamp(0, 512).into());
+        for _ in 0..width {
+            column_offsets.push(cursor.read_u32::<LittleEndian>()?);
+        }
 
-            Ok(Self {
-                name,
-                width,
-                height,
-                x,
-                y,
-                columns,
-            })
-        })()
-        .explain(|| lump.error("bad patch data"))
+        // Read columns. The WAD is untrusted so clamp how much memory is pre-allocated.
+        let mut columns = Vec::with_capacity(width.clamp(0, 512).into());
+        for column_offset in column_offsets {
+            cursor.seek(SeekFrom::Start(column_offset.into()))?;
+            let column = Self::read_column(lump, &mut cursor)?;
+            columns.push(column);
+        }
+
+        Ok(Self {
+            name,
+            width,
+            height,
+            x,
+            y,
+            columns,
+        })
     }
 
     fn read_column(
