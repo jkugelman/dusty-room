@@ -2,8 +2,8 @@ use std::fmt;
 
 use crate::wad::{self, Lump, Wad};
 
-pub struct Map {
-    name: String,
+pub struct Map<'wad> {
+    name: &'wad str,
     _things: (),
     _vertices: (),
     _sides: (),
@@ -11,18 +11,18 @@ pub struct Map {
     _sectors: (),
 }
 
-impl Map {
+impl<'wad> Map<'wad> {
     /// Loads a map, typically named `ExMy` for DOOM or `MAPnn` for DOOM II.
     ///
     /// Returns `Ok(None)` if the map is missing.
-    pub fn load(wad: &Wad, name: &str) -> wad::Result<Option<Self>> {
+    pub fn load(wad: &'wad Wad, name: &str) -> wad::Result<Option<Self>> {
         let lumps = wad.try_lumps_following(name, 11)?;
         if lumps.is_none() {
             return Ok(None);
         }
         let lumps = lumps.unwrap();
 
-        let name = name.to_owned();
+        let name = lumps.name();
         let things = Self::read_things(lumps[1].expect_name("THINGS")?);
         let vertices = Self::read_vertices(lumps[4].expect_name("VERTEXES")?);
         let sectors = Self::read_sectors(lumps[8].expect_name("SECTORS")?);
@@ -46,7 +46,7 @@ impl Map {
     fn read_lines(_lump: &Lump) {}
 }
 
-impl fmt::Debug for Map {
+impl fmt::Debug for Map<'_> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let Self {
             name,
@@ -61,7 +61,7 @@ impl fmt::Debug for Map {
     }
 }
 
-impl fmt::Display for Map {
+impl fmt::Display for Map<'_> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.name)
     }
