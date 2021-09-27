@@ -48,11 +48,9 @@ impl<S: Borrow<str>> NameExt for S {
     fn is_legal(&self) -> bool {
         let name = self.borrow();
 
-        let good_length = name.len() >= 1 && name.len() <= 8;
-        let has_illegal_char = name.contains(|ch| match ch {
-            'A'..='Z' | '0'..='9' | '[' | ']' | '-' | '_' | '\\' => false,
-            _ => true,
-        });
+        let good_length = !name.is_empty() && name.len() <= 8;
+        let has_illegal_char =
+            name.contains(|ch| !matches!(ch, 'A'..='Z' | '0'..='9' | '[' | ']' | '-' | '_' | '\\'));
 
         good_length && !has_illegal_char
     }

@@ -48,6 +48,11 @@ impl<'wad> PatchBank<'wad> {
         self.0.len().try_into().unwrap()
     }
 
+    /// Returns `true` if there are no patches.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns the patch at the specified index.
     ///
     /// # Errors
@@ -59,7 +64,7 @@ impl<'wad> PatchBank<'wad> {
     pub fn get(&self, index: u16) -> Result<&Arc<Patch<'wad>>, Option<&'wad str>> {
         let (name, patch): &(&str, Option<Arc<Patch>>) =
             self.0.get(usize::from(index)).ok_or(None)?;
-        Ok(patch.as_ref().ok_or(Some(*name))?)
+        patch.as_ref().ok_or(Some(*name))
     }
 }
 

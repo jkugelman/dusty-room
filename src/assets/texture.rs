@@ -116,7 +116,7 @@ impl<'wad> Texture<'wad> {
 
     /// The texture's name.
     pub fn name(&self) -> &'wad str {
-        &self.name
+        self.name
     }
 
     /// The texture's width in pixels.
