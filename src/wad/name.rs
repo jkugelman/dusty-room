@@ -46,9 +46,31 @@ impl<S: Borrow<str>> NameExt for S {
     /// Returns `true` if this is a legal lump name consisting only of the letters `A-Z`, digits
     /// `0-9`, and any of the punctuation `[]-_\`.
     fn is_legal(&self) -> bool {
-        !self.borrow().contains(|ch| match ch {
+        let name = self.borrow();
+
+        let good_length = name.len() >= 1 && name.len() <= 8;
+        let has_illegal_char = name.contains(|ch| match ch {
             'A'..='Z' | '0'..='9' | '[' | ']' | '-' | '_' | '\\' => false,
             _ => true,
-        })
+        });
+
+        good_length && !has_illegal_char
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_legal() {
+        assert!("PLAYPAL".is_legal());
+        assert!("E1M8".is_legal());
+        assert!("F1_101".is_legal());
+        assert!("F-[_]\\R".is_legal());
+
+        assert!(!"".is_legal());
+        assert!(!"w104_1".is_legal());
+        assert!(!"TOO_DARN_LONG".is_legal());
     }
 }
