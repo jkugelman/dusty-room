@@ -1,6 +1,5 @@
 pub use assets::*;
 pub use flat::*;
-pub use geom::*;
 pub use map::*;
 pub use palette::*;
 pub use patch::*;
@@ -12,7 +11,6 @@ pub(self) use error::*;
 mod assets;
 mod error;
 mod flat;
-mod geom;
 mod map;
 mod palette;
 mod patch;
