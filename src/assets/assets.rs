@@ -1,4 +1,5 @@
 use crate::assets::FlatBank;
+use crate::assets::MapBank;
 use crate::assets::PaletteBank;
 use crate::assets::TextureBank;
 use crate::wad::{self, Wad};
@@ -6,22 +7,27 @@ use crate::wad::{self, Wad};
 /// Holds all of the assets loaded from a [`Wad`]: maps, sprites, textures, sounds, etc.
 #[derive(Debug)]
 pub struct Assets<'wad> {
+    wad: &'wad Wad,
     _palette_bank: PaletteBank<'wad>,
     _flat_bank: FlatBank<'wad>,
     _texture_bank: TextureBank<'wad>,
+    _map_bank: MapBank<'wad>,
 }
 
 impl<'wad> Assets<'wad> {
     /// Loads assets from a [`Wad`].
     pub fn load(wad: &'wad Wad) -> wad::Result<Self> {
-        let palette_bank = PaletteBank::load(wad)?;
-        let flat_bank = FlatBank::load(wad)?;
-        let texture_bank = TextureBank::load(wad)?;
+        let _palette_bank = PaletteBank::load(wad)?;
+        let _flat_bank = FlatBank::load(wad)?;
+        let _texture_bank = TextureBank::load(wad)?;
+        let _map_bank = MapBank::load(wad)?;
 
         Ok(Assets {
-            _palette_bank: palette_bank,
-            _flat_bank: flat_bank,
-            _texture_bank: texture_bank,
+            wad,
+            _palette_bank,
+            _flat_bank,
+            _texture_bank,
+            _map_bank,
         })
     }
 }
