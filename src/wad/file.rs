@@ -16,7 +16,7 @@ use bytes::Bytes;
 
 use crate::wad::parse_name;
 use crate::wad::NameExt;
-use crate::wad::{self, Lump, Lumps, ResultExt};
+use crate::wad::{self, Lump, Lumps};
 
 /// A single IWAD or PWAD.
 ///
@@ -68,7 +68,10 @@ impl WadFile {
     /// Loads a WAD file from disk.
     pub fn load(path: impl AsRef<Path>) -> wad::Result<Arc<Self>> {
         let path = path.as_ref();
-        let file = File::open(path).err_path(path)?;
+        let file = File::open(path).map_err(|err| wad::Error::Io {
+            path: path.to_owned(),
+            source: err,
+        })?;
         Self::load_reader(path, file)
     }
 
@@ -81,7 +84,10 @@ impl WadFile {
     /// point to an actual file on disk.
     pub fn load_reader(path: impl AsRef<Path>, file: impl Read + Seek) -> wad::Result<Arc<Self>> {
         let path = path.as_ref();
-        let raw = Self::read_bytes(file).err_path(path)?;
+        let raw = Self::read_bytes(file).map_err(|err| wad::Error::Io {
+            path: path.to_owned(),
+            source: err,
+        })?;
         Self::load_raw(path, raw)
     }
 

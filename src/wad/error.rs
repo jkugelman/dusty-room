@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use thiserror::Error;
 
-use crate::wad::{self, WadKind};
+use crate::wad::WadKind;
 
 /// A specialized [`Result`] type for [`Wad`] and [`WadFile`] operations. This typedef is used to
 /// avoid writing out [`wad::Error`] directly and is otherwise a direct mapping to [`Result`].
@@ -65,22 +65,5 @@ impl Error {
             path: path.as_ref().to_owned(),
             desc: desc.into(),
         }
-    }
-}
-
-/// Import this trait to add an extension method to convert a [`std::io::Result`] into a
-/// [`wad::Result`].
-pub(super) trait ResultExt<T> {
-    /// Maps a [`std::io::Error`] into a [`wad::Error::Io`] by adding a file path for context.
-    fn err_path(self, path: impl AsRef<Path>) -> wad::Result<T>;
-}
-
-impl<T> ResultExt<T> for io::Result<T> {
-    /// Maps a [`std::io::Error`] into a [`wad::Error::Io`] by adding a file path for context.
-    fn err_path(self, path: impl AsRef<Path>) -> wad::Result<T> {
-        self.map_err(|err| wad::Error::Io {
-            path: path.as_ref().to_owned(),
-            source: err,
-        })
     }
 }
