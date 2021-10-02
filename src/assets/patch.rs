@@ -1,13 +1,11 @@
 use std::convert::TryInto;
 use std::fmt;
-use std::io::{BufRead, Cursor, Seek, SeekFrom};
 use std::ops::Index;
 use std::sync::Arc;
 
-use byteorder::{LittleEndian, ReadBytesExt};
+use bytes::{Buf, Bytes};
 
-use crate::assets::{LoadError, ResultExt};
-use crate::wad::{self, read_name, Lump, Wad};
+use crate::wad::{self, Lump, Wad};
 
 /// A list of patches from the `PNAMES` lump.
 ///
@@ -16,30 +14,29 @@ use crate::wad::{self, read_name, Lump, Wad};
 /// still lists all of the patches. It still loads because none of the textures in `TEXTURE1` use
 /// the missing patches.
 #[derive(Clone, Debug)]
-pub struct PatchBank<'wad>(Vec<(&'wad str, Option<Arc<Patch<'wad>>>)>);
+pub struct PatchBank(Vec<(String, Option<Arc<Patch>>)>);
 
-impl<'wad> PatchBank<'wad> {
+impl PatchBank {
     /// Loads all the patches from a [`Wad`].
     ///
     /// Patch names are listed in the `PNAMES` lump, and each patch is loaded from the lump of that
     /// name.
-    pub fn load(wad: &'wad Wad) -> wad::Result<Self> {
+    pub fn load(wad: &Wad) -> wad::Result<Self> {
         let lump = wad.lump("PNAMES")?;
-        let patches = Self::load_impl(&lump, wad).explain(|| lump.error("bad patch list data"))?;
-        Ok(patches)
-    }
+        let mut cursor = lump.cursor();
 
-    fn load_impl(lump: &Lump<'wad>, wad: &'wad Wad) -> Result<Self, LoadError> {
-        let mut cursor = Cursor::new(lump.data());
-        let count = cursor.read_u32::<LittleEndian>()?;
+        let count = cursor.need(4)?.get_u32_le();
         let mut patches = Vec::with_capacity(count.clamp(0, 1024) as usize);
+
         for _ in 0..count {
-            let name = read_name(&mut cursor)?
-                .map_err(|name| lump.error(&format!("contains bad lump name {:?}", name)))?;
-            let lump = wad.try_lump(name)?;
+            let name = cursor.need(8)?.get_name();
+            let lump = wad.try_lump(&name)?;
             let patch = lump.as_ref().map(Patch::load).transpose()?.map(Arc::new);
             patches.push((name, patch));
         }
+
+        cursor.done()?;
+
         Ok(Self(patches))
     }
 
@@ -61,15 +58,15 @@ impl<'wad> PatchBank<'wad> {
     ///
     /// Returns `Err(Some(name))` if `PNAMES` had the name of a missing patch, as happens with the
     /// shareware version of `doom.wad`.
-    pub fn get(&self, index: u16) -> Result<&Arc<Patch<'wad>>, Option<&'wad str>> {
-        let (name, patch): &(&str, Option<Arc<Patch>>) =
+    pub fn get(&self, index: u16) -> Result<&Arc<Patch>, Option<&str>> {
+        let (name, patch): &(String, Option<Arc<Patch>>) =
             self.0.get(usize::from(index)).ok_or(None)?;
-        patch.as_ref().ok_or(Some(*name))
+        patch.as_ref().ok_or(Some(name))
     }
 }
 
-impl<'wad> Index<u16> for PatchBank<'wad> {
-    type Output = Patch<'wad>;
+impl Index<u16> for PatchBank {
+    type Output = Patch;
 
     fn index(&self, index: u16) -> &Self::Output {
         self.0[usize::from(index)].1.as_ref().unwrap()
@@ -80,52 +77,49 @@ impl<'wad> Index<u16> for PatchBank<'wad> {
 ///
 /// [`Texture`]: crate::assets::Texture
 #[derive(Clone)]
-pub struct Patch<'wad> {
-    name: &'wad str,
+pub struct Patch {
+    name: String,
     width: u16,
     height: u16,
     x: i16,
     y: i16,
-    columns: Vec<Column<'wad>>,
+    columns: Vec<Column>,
 }
 
 #[derive(Debug, Clone)]
-struct Column<'wad> {
-    posts: Vec<Post<'wad>>,
+struct Column {
+    posts: Vec<Post>,
 }
 
 #[derive(Clone)]
-struct Post<'wad> {
+struct Post {
     y_offset: u16,
-    pixels: &'wad [u8],
+    pixels: Bytes,
 }
 
-impl<'wad> Patch<'wad> {
-    pub fn load(lump: &Lump<'wad>) -> wad::Result<Self> {
-        Self::load_impl(lump).explain(|| lump.error("bad patch data"))
-    }
+impl Patch {
+    pub fn load(lump: &Lump) -> wad::Result<Self> {
+        let mut cursor = lump.cursor();
 
-    fn load_impl(lump: &Lump<'wad>) -> Result<Self, LoadError> {
-        let mut cursor = Cursor::new(lump.data());
-
-        let name = lump.name();
-        let width = cursor.read_u16::<LittleEndian>()?;
-        let height = cursor.read_u16::<LittleEndian>()?;
-        let y = cursor.read_i16::<LittleEndian>()?;
-        let x = cursor.read_i16::<LittleEndian>()?;
+        let name = lump.name().to_owned();
+        let width = cursor.need(2)?.get_u16_le();
+        let height = cursor.need(2)?.get_u16_le();
+        let y = cursor.need(2)?.get_i16_le();
+        let x = cursor.need(2)?.get_i16_le();
 
         // Read column offsets. The WAD is untrusted so clamp how much memory is pre-allocated.
         let mut column_offsets = Vec::with_capacity(width.clamp(0, 512).into());
         for _ in 0..width {
-            column_offsets.push(cursor.read_u32::<LittleEndian>()?);
+            column_offsets.push(cursor.need(4)?.get_u32_le());
         }
+
+        cursor.clear();
+        cursor.done()?;
 
         // Read columns. The WAD is untrusted so clamp how much memory is pre-allocated.
         let mut columns = Vec::with_capacity(width.clamp(0, 512).into());
-        for column_offset in column_offsets {
-            cursor.seek(SeekFrom::Start(column_offset.into()))?;
-            let column = Self::read_column(lump, &mut cursor)?;
-            columns.push(column);
+        for offset in column_offsets {
+            columns.push(Self::read_column(lump, offset.try_into().unwrap())?);
         }
 
         Ok(Self {
@@ -138,15 +132,15 @@ impl<'wad> Patch<'wad> {
         })
     }
 
-    fn read_column(
-        lump: &Lump<'wad>,
-        cursor: &mut Cursor<&[u8]>,
-    ) -> Result<Column<'wad>, LoadError> {
+    fn read_column(lump: &Lump, offset: usize) -> wad::Result<Column> {
+        let mut cursor = lump.cursor();
+        cursor.need(offset)?.advance(offset);
+
         let mut posts = Vec::new();
         let mut last_y_offset = None;
 
         loop {
-            let y_offset = match (cursor.read_u8()? as u16, last_y_offset) {
+            let y_offset = match (cursor.need(1)?.get_u8() as u16, last_y_offset) {
                 // The end of the column is marked by an offset of 255.
                 (255, _) => {
                     break;
@@ -165,27 +159,25 @@ impl<'wad> Patch<'wad> {
                 // The common case.
                 (y_offset, _) => y_offset,
             };
-            let length = cursor.read_u8()?;
-            let _unused = cursor.read_u8()?;
 
-            // Save memory by having pixel data be a direct slice from the lump.
-            let start = cursor.position() as usize;
-            cursor.consume(length.into());
-            let end = cursor.position() as usize;
-            let pixels = &lump.data().get(start..end).ok_or(LoadError::BadLump)?;
-
-            let _unused = cursor.read_u8()?;
+            let length = cursor.need(1)?.get_u8() as usize;
+            let _unused = cursor.need(1)?.get_u8();
+            let pixels = cursor.need(length)?.split_to(length);
+            let _unused = cursor.need(1)?.get_u8();
 
             posts.push(Post { y_offset, pixels });
             last_y_offset = Some(y_offset);
         }
 
+        cursor.clear();
+        cursor.done()?;
+
         Ok(Column { posts })
     }
 
     /// The patch's name.
-    pub fn name(&self) -> &'wad str {
-        self.name
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     /// Width in pixels.
@@ -209,8 +201,8 @@ impl<'wad> Patch<'wad> {
     }
 }
 
-impl fmt::Debug for Patch<'_> {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl fmt::Debug for Patch {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let Self {
             name,
             width,
@@ -230,13 +222,13 @@ impl fmt::Debug for Patch<'_> {
     }
 }
 
-impl fmt::Display for Patch<'_> {
+impl fmt::Display for Patch {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{} ({}x{})", self.name, self.width, self.height)
     }
 }
 
-impl fmt::Debug for Post<'_> {
+impl fmt::Debug for Post {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let Self { y_offset, pixels } = self;
 

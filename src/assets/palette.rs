@@ -2,30 +2,33 @@ use std::convert::TryInto;
 use std::mem;
 use std::ops::Index;
 
-use crate::wad::{self, Wad};
+use bytes::{Buf, Bytes};
+
+use crate::wad::{self, Cursor, Wad};
 
 /// A bank of color palettes loaded from the `PLAYPAL` lump.
 ///
 /// The active palette can be switched at any time. There is no palette selected initially so make
 /// sure to choose one.
 #[derive(Debug)]
-pub struct PaletteBank<'wad> {
-    palettes: Vec<Palette<'wad>>,
+pub struct PaletteBank {
+    palettes: Vec<Palette>,
     active_index: Option<usize>,
 }
 
-impl<'wad> PaletteBank<'wad> {
+impl PaletteBank {
     /// Loads a bank of color palettes from the `PLAYPAL` lump.
-    pub fn load(wad: &'wad Wad) -> wad::Result<Self> {
+    pub fn load(wad: &Wad) -> wad::Result<Self> {
         let lump = wad.lump("PLAYPAL")?;
-        let lump = lump.expect_size_multiple(PALETTE_BYTES)?;
+        let mut cursor = lump.cursor();
 
-        let palettes: Vec<Palette> = lump
-            .data()
-            .chunks_exact(PALETTE_BYTES)
-            .map(|chunk| -> &[u8; PALETTE_BYTES] { chunk.try_into().unwrap() })
-            .map(Palette::from_raw)
-            .collect();
+        let mut palettes = Vec::with_capacity(lump.size() / PALETTE_BYTES);
+
+        while cursor.has_remaining() {
+            palettes.push(Palette::load(&mut cursor)?);
+        }
+
+        cursor.done()?;
 
         Ok(PaletteBank {
             palettes,
@@ -57,24 +60,28 @@ impl<'wad> PaletteBank<'wad> {
 
 /// A 256-color palette. Part of a [`PaletteBank`].
 #[derive(Debug, Clone)]
-pub struct Palette<'wad>(&'wad [(u8, u8, u8); PALETTE_COLORS]);
+pub struct Palette {
+    raw: Bytes,
+}
 
 const PALETTE_COLORS: usize = 256;
 const PALETTE_BYTES: usize = 3 * PALETTE_COLORS;
 
-impl<'wad> Palette<'wad> {
-    pub fn from_raw(raw: &'wad [u8; 3 * PALETTE_COLORS]) -> Self {
-        // SAFETY: `[u8; 3 * PALETE_COLORS]` has the same size and layout as
-        // `[(u8, u8, u8); PALETTE_COLORS]`.
-        Self(unsafe { mem::transmute(raw) })
+impl Palette {
+    fn load(cursor: &mut Cursor) -> wad::Result<Self> {
+        let raw = cursor.need(PALETTE_BYTES)?.split_to(PALETTE_BYTES);
+        Ok(Self { raw })
     }
 }
 
-impl<'wad> Index<u8> for Palette<'wad> {
+impl Index<u8> for Palette {
     type Output = (u8, u8, u8);
 
     fn index(&self, index: u8) -> &Self::Output {
-        &self.0[usize::from(index)]
+        let index: usize = index.into();
+        let rgb: &[u8; 3] = self.raw[index * 3..index * 3 + 3].try_into().unwrap();
+        // SAFETY: `[u8; 3]` and `(u8, u8, u8)` have the same size and layout.
+        unsafe { mem::transmute(rgb) }
     }
 }
 

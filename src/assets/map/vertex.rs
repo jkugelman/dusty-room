@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use bytes::Buf;
 
 use crate::wad::{self, Lump};
 
@@ -15,13 +15,13 @@ impl Vertex {
 
     pub fn load(lump: &Lump) -> wad::Result<Vec<Self>> {
         assert_eq!(lump.name(), "VERTEXES");
+        let mut cursor = lump.cursor();
 
-        let count = lump.expect_size_multiple(4)?.size() / 4;
-        let mut vertexes = Vec::with_capacity(count);
+        let mut vertexes = Vec::with_capacity(lump.size() / 4);
 
-        for chunk in lump.data().chunks_exact(4) {
-            let x = i16::from_le_bytes(chunk[0..2].try_into().unwrap());
-            let y = i16::from_le_bytes(chunk[2..4].try_into().unwrap());
+        while !cursor.has_remaining() {
+            let x = cursor.need(2)?.get_i16_le();
+            let y = cursor.need(2)?.get_i16_le();
             vertexes.push(Self::new(x, y));
         }
 

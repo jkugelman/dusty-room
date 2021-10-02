@@ -24,7 +24,8 @@ impl Wad {
     ///
     /// [IWAD]: WadKind::Iwad
     pub fn load(path: impl AsRef<Path>) -> wad::Result<Self> {
-        let file = WadFile::load(path.as_ref())?.expect_kind(WadKind::Iwad)?;
+        let file = WadFile::load(path.as_ref())?;
+        file.expect_kind(WadKind::Iwad)?;
         Self::new(file)
     }
 
@@ -48,9 +49,9 @@ impl Wad {
     /// [IWAD]: WadKind::Iwad
     /// [`load`]: Self::load
     /// [`expect_kind`]: WadFile::expect_kind
-    pub fn new(file: WadFile) -> wad::Result<Self> {
+    pub fn new(file: Arc<WadFile>) -> wad::Result<Self> {
         Ok(Self {
-            initial: Arc::new(file),
+            initial: file,
             patches: Vec::new(),
         })
     }
@@ -59,7 +60,8 @@ impl Wad {
     ///
     /// [PWAD]: WadKind::Pwad
     pub fn patch(&self, path: impl AsRef<Path>) -> wad::Result<Self> {
-        let file = WadFile::load(path.as_ref())?.expect_kind(WadKind::Pwad)?;
+        let file = WadFile::load(path.as_ref())?;
+        file.expect_kind(WadKind::Pwad)?;
         self.add(file)
     }
 
@@ -82,9 +84,9 @@ impl Wad {
     /// [PWAD]: WadKind::Pwad
     /// [`patch`]: Self::patch
     /// [`expect_kind`]: WadFile::expect_kind
-    pub fn add(&self, file: WadFile) -> wad::Result<Self> {
+    pub fn add(&self, file: Arc<WadFile>) -> wad::Result<Self> {
         let mut clone = self.clone();
-        clone.patches.push(Arc::new(file));
+        clone.patches.push(file);
         Ok(clone)
     }
 
@@ -182,10 +184,10 @@ impl Wad {
         self.try_lookup(|file| file.try_lumps_between(start, end))
     }
 
-    fn lookup<'wad, T>(
-        &'wad self,
-        try_lookup: impl Fn(&'wad WadFile) -> wad::Result<Option<T>>,
-        lookup: impl FnOnce(&'wad WadFile) -> wad::Result<T>,
+    fn lookup<T>(
+        &self,
+        try_lookup: impl Fn(&Arc<WadFile>) -> wad::Result<Option<T>>,
+        lookup: impl FnOnce(&Arc<WadFile>) -> wad::Result<T>,
     ) -> wad::Result<T> {
         for patch in self.patches.iter().rev() {
             if let Some(value) = try_lookup(patch)? {
@@ -196,9 +198,9 @@ impl Wad {
         lookup(&self.initial)
     }
 
-    fn try_lookup<'wad, T>(
-        &'wad self,
-        try_lookup: impl Fn(&'wad WadFile) -> wad::Result<Option<T>>,
+    fn try_lookup<T>(
+        &self,
+        try_lookup: impl Fn(&Arc<WadFile>) -> wad::Result<Option<T>>,
     ) -> wad::Result<Option<T>> {
         for patch in self.patches.iter().rev() {
             if let Some(value) = try_lookup(patch)? {

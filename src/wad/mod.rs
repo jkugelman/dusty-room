@@ -15,6 +15,7 @@
 //! let sectors_lump = my_level.get_with_name(8, "SECTORS")?;
 //! ```
 
+pub use cursor::*;
 pub use error::*;
 pub use file::*;
 pub use lump::*;
@@ -24,6 +25,7 @@ pub use wad::*;
 #[cfg(test)]
 pub(crate) mod test;
 
+mod cursor;
 mod error;
 mod file;
 mod lump;

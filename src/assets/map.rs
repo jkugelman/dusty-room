@@ -8,12 +8,12 @@ use std::fmt;
 use crate::wad::{self, Lump, Wad};
 
 #[derive(Debug)]
-pub struct MapBank<'wad> {
-    maps: BTreeMap<&'wad str, Map<'wad>>,
+pub struct MapBank {
+    maps: BTreeMap<String, Map>,
 }
 
-impl<'wad> MapBank<'wad> {
-    pub fn load(wad: &'wad Wad) -> wad::Result<Self> {
+impl MapBank {
+    pub fn load(wad: &Wad) -> wad::Result<Self> {
         let maps = BTreeMap::new();
 
         Ok(Self { maps })
@@ -24,8 +24,8 @@ impl<'wad> MapBank<'wad> {
     }
 }
 
-pub struct Map<'wad> {
-    name: &'wad str,
+pub struct Map {
+    name: String,
     things: (),
     vertexes: Vec<Vertex>,
     sides: (),
@@ -33,20 +33,20 @@ pub struct Map<'wad> {
     sectors: (),
 }
 
-impl<'wad> Map<'wad> {
+impl Map {
     /// Loads a map, typically named `ExMy` for DOOM or `MAPnn` for DOOM II.
     ///
     /// # Errors
     ///
     /// Returns `Ok(None)` if the map is missing.
-    pub fn load(wad: &'wad Wad, name: &str) -> wad::Result<Option<Self>> {
+    pub fn load(wad: &Wad, name: &str) -> wad::Result<Option<Self>> {
         let lumps = wad.try_lumps_following(name, 11)?;
         if lumps.is_none() {
             return Ok(None);
         }
         let lumps = lumps.unwrap();
 
-        let name = lumps.name();
+        let name = lumps.name().to_owned();
         let things = Self::read_things(lumps[1].expect_name("THINGS")?);
         let vertexes = Vertex::load(lumps[4].expect_name("VERTEXES")?)?;
         let sectors = Self::read_sectors(lumps[8].expect_name("SECTORS")?);
@@ -69,7 +69,7 @@ impl<'wad> Map<'wad> {
     fn read_lines(_lump: &Lump) {}
 }
 
-impl fmt::Debug for Map<'_> {
+impl fmt::Debug for Map {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let Self {
             name,
@@ -91,7 +91,7 @@ impl fmt::Debug for Map<'_> {
     }
 }
 
-impl fmt::Display for Map<'_> {
+impl fmt::Display for Map {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.name)
     }

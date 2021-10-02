@@ -1,19 +1,19 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use ndarray::ArrayView2;
+use bytes::Bytes;
 
 use crate::wad::{self, Lump, Wad};
 
 /// A list of floor and ceiling textures, indexed by name.
 #[derive(Clone)]
-pub struct FlatBank<'wad>(BTreeMap<&'wad str, Flat<'wad>>);
+pub struct FlatBank(BTreeMap<String, Flat>);
 
-impl<'wad> FlatBank<'wad> {
+impl FlatBank {
     /// Loads all the flats from a [`Wad`].
     ///
     /// Flats are found between the `F_START` and `F_END` marker lumps.
-    pub fn load(wad: &'wad Wad) -> wad::Result<Self> {
+    pub fn load(wad: &Wad) -> wad::Result<Self> {
         let lumps = wad.lumps_between("F_START", "F_END")?;
         let mut flats = BTreeMap::new();
 
@@ -23,22 +23,22 @@ impl<'wad> FlatBank<'wad> {
             }
 
             let flat = Flat::load(&lump)?;
-            let existing = flats.insert(flat.name, flat);
+            let existing = flats.insert(flat.name.clone(), flat);
 
             if existing.is_some() {
-                return Err(lump.error(&format!("duplicate flat {}", lump.name())));
+                return Err(lump.error(format!("duplicate flat {}", lump.name())));
             }
         }
 
         Ok(Self(flats))
     }
 
-    pub fn get(&self, name: &str) -> Option<&Flat<'wad>> {
+    pub fn get(&self, name: &str) -> Option<&Flat> {
         self.0.get(name)
     }
 }
 
-impl fmt::Debug for FlatBank<'_> {
+impl fmt::Debug for FlatBank {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let Self(flats) = self;
 
@@ -48,28 +48,28 @@ impl fmt::Debug for FlatBank<'_> {
 
 /// A floor or ceiling texture.
 #[derive(Clone)]
-pub struct Flat<'wad> {
-    name: &'wad str,
-    pixels: ArrayView2<'wad, u8>,
+pub struct Flat {
+    name: String,
+    pixels: Bytes,
 }
 
-impl<'wad> Flat<'wad> {
+impl Flat {
     /// Load a flat from a lump.
-    pub fn load(lump: &Lump<'wad>) -> wad::Result<Self> {
+    pub fn load(lump: &Lump) -> wad::Result<Self> {
         let width: usize = Self::width().into();
         let height: usize = Self::height().into();
 
-        lump.expect_size(width * height)?;
+        let mut cursor = lump.cursor();
+        let name = lump.name().to_owned();
+        let pixels = cursor.need(width * height)?.split_to(width * height);
+        cursor.done()?;
 
-        Ok(Self {
-            name: lump.name(),
-            pixels: ArrayView2::from_shape((width, height), lump.data()).unwrap(),
-        })
+        Ok(Self { name, pixels })
     }
 
     /// Flat name, the name of its [`Lump`].
-    pub fn name(&self) -> &'wad str {
-        self.name
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     /// Width in pixels. Flats are always 64x64.
@@ -83,7 +83,7 @@ impl<'wad> Flat<'wad> {
     }
 }
 
-impl fmt::Debug for Flat<'_> {
+impl fmt::Debug for Flat {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let Self { name, pixels: _ } = self;
 
@@ -91,7 +91,7 @@ impl fmt::Debug for Flat<'_> {
     }
 }
 
-impl fmt::Display for Flat<'_> {
+impl fmt::Display for Flat {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.name)
     }

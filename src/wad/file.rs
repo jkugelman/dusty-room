@@ -9,7 +9,10 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::{fmt, io};
+
+use bytes::Bytes;
 
 use crate::wad::parse_name;
 use crate::wad::NameExt;
@@ -24,7 +27,7 @@ use crate::wad::{self, Lump, Lumps, ResultExt};
 /// [`Wad`]: crate::wad::Wad
 pub struct WadFile {
     path: PathBuf,
-    raw: Vec<u8>,
+    raw: Bytes,
     kind: WadKind,
     lump_locations: Vec<LumpLocation>,
     lump_indices: HashMap<String, Vec<usize>>,
@@ -63,7 +66,7 @@ struct LumpLocation {
 
 impl WadFile {
     /// Loads a WAD file from disk.
-    pub fn load(path: impl AsRef<Path>) -> wad::Result<Self> {
+    pub fn load(path: impl AsRef<Path>) -> wad::Result<Arc<Self>> {
         let path = path.as_ref();
         let file = File::open(path).err_path(path)?;
         Self::load_reader(path, file)
@@ -76,13 +79,13 @@ impl WadFile {
     ///
     /// The `path` only used for display purposes, such as in error messages. It doesn't need to
     /// point to an actual file on disk.
-    pub fn load_reader(path: impl AsRef<Path>, file: impl Read + Seek) -> wad::Result<Self> {
+    pub fn load_reader(path: impl AsRef<Path>, file: impl Read + Seek) -> wad::Result<Arc<Self>> {
         let path = path.as_ref();
-        let raw = Self::read_into_vec(file).err_path(path)?;
+        let raw = Self::read_bytes(file).err_path(path)?;
         Self::load_raw(path, raw)
     }
 
-    fn read_into_vec(mut file: impl Read + Seek) -> io::Result<Vec<u8>> {
+    fn read_bytes(mut file: impl Read + Seek) -> io::Result<Bytes> {
         // If the file is really large it may not fit into memory. Individual allocations can never
         // exceed `isize::MAX` bytes, which is just 2GB on a 32-bit system.
         //
@@ -94,12 +97,13 @@ impl WadFile {
             return Err(io::Error::new(io::ErrorKind::OutOfMemory, "file too large"));
         }
         let size: usize = size.try_into().unwrap();
+
         // Reserve an extra byte to avoid an undesirable doubling of capacity. See:
         // https://users.rust-lang.org/t/vec-with-capacity-read-to-end-overallocation/65023
         let mut raw = Vec::with_capacity(size + 1);
-
         file.rewind()?;
         file.read_to_end(&mut raw)?;
+        let raw = Bytes::from(raw);
 
         Ok(raw)
     }
@@ -108,13 +112,13 @@ impl WadFile {
     ///
     /// The `path` only used for display purposes, such as in error messages. It doesn't need to
     /// point to an actual file on disk.
-    pub fn load_raw(path: impl AsRef<Path>, raw: Vec<u8>) -> wad::Result<Self> {
+    pub fn load_raw(path: impl AsRef<Path>, raw: Bytes) -> wad::Result<Arc<Self>> {
         Self::load_raw_impl(path.as_ref(), raw)
             .map_err(|desc: String| wad::Error::malformed(path, desc))
     }
 
     // Non-generic helper to minimize the amount of code subject to monomorphization.
-    fn load_raw_impl(path: &Path, raw: Vec<u8>) -> Result<Self, String> {
+    fn load_raw_impl(path: &Path, raw: Bytes) -> Result<Arc<Self>, String> {
         let Header {
             kind,
             lump_count,
@@ -126,13 +130,13 @@ impl WadFile {
             lump_indices,
         } = Self::read_directory(&raw, lump_count, directory_offset)?;
 
-        Ok(Self {
+        Ok(Arc::new(Self {
             path: path.to_owned(),
             raw,
             kind,
             lump_locations,
             lump_indices,
-        })
+        }))
     }
 
     fn read_header(raw: &[u8]) -> Result<Header, String> {
@@ -176,11 +180,11 @@ impl WadFile {
             let offset = u32::from_le_bytes(entry[0..4].try_into().unwrap());
             let size = u32::from_le_bytes(entry[4..8].try_into().unwrap());
             let name: [u8; 8] = entry[8..16].try_into().unwrap();
-            let name = match parse_name(&name) {
-                Ok(name) if name.is_legal() => Ok(name.to_owned()),
-                Ok(name) => Err(format!("bad lump name {:?}", name)),
-                Err(name) => Err(format!("bad lump name {:?}", name)),
-            }?;
+            let name = parse_name(&name);
+
+            if !name.is_legal_name() {
+                return Err(format!("bad lump name {:?}", name));
+            }
 
             // Check lump bounds now so we don't have to later.
             let offset: usize = offset.try_into().unwrap();
@@ -223,9 +227,9 @@ impl WadFile {
     }
 
     /// Checks that the file is the correct kind.
-    pub fn expect_kind(self, expected: WadKind) -> wad::Result<Self> {
+    pub fn expect_kind(self: &Arc<Self>, expected: WadKind) -> wad::Result<()> {
         if self.kind() == expected {
-            Ok(self)
+            Ok(())
         } else {
             Err(wad::Error::WrongType {
                 path: self.path().to_owned(),
@@ -239,7 +243,7 @@ impl WadFile {
     /// # Errors
     ///
     /// It is an error if the lump is missing.
-    pub fn lump(&self, name: &str) -> wad::Result<Lump> {
+    pub fn lump(self: &Arc<Self>, name: &str) -> wad::Result<Lump> {
         self.try_lump(name)?
             .ok_or_else(|| self.error(format!("{} missing", name)))
     }
@@ -247,7 +251,7 @@ impl WadFile {
     /// Retrieves a unique lump by name.
     ///
     /// Returns `Ok(None)` if the lump is missing.
-    pub fn try_lump(&self, name: &str) -> wad::Result<Option<Lump>> {
+    pub fn try_lump(self: &Arc<Self>, name: &str) -> wad::Result<Option<Lump>> {
         let index = self.try_lump_index(name)?;
         if index.is_none() {
             return Ok(None);
@@ -267,7 +271,7 @@ impl WadFile {
     /// # Panics
     ///
     /// Panics if `size == 0`.
-    pub fn lumps_following(&self, start: &str, size: usize) -> wad::Result<Lumps> {
+    pub fn lumps_following(self: &Arc<Self>, start: &str, size: usize) -> wad::Result<Lumps> {
         self.try_lumps_following(start, size)?
             .ok_or_else(|| self.error(format!("{} missing", start)))
     }
@@ -280,7 +284,11 @@ impl WadFile {
     /// # Panics
     ///
     /// Panics if `size == 0`.
-    pub fn try_lumps_following(&self, start: &str, size: usize) -> wad::Result<Option<Lumps>> {
+    pub fn try_lumps_following(
+        self: &Arc<Self>,
+        start: &str,
+        size: usize,
+    ) -> wad::Result<Option<Lumps>> {
         assert!(size > 0);
 
         let start_index = self.try_lump_index(start)?;
@@ -302,7 +310,7 @@ impl WadFile {
     /// # Errors
     ///
     /// It is an error if the block is missing.
-    pub fn lumps_between(&self, start: &str, end: &str) -> wad::Result<Lumps> {
+    pub fn lumps_between(self: &Arc<Self>, start: &str, end: &str) -> wad::Result<Lumps> {
         self.try_lumps_between(start, end)?
             .ok_or_else(|| self.error(format!("{} and {} missing", start, end)))
     }
@@ -311,7 +319,11 @@ impl WadFile {
     /// included in the result.
     ///
     /// Returns `Ok(None)` if the block is missing.
-    pub fn try_lumps_between(&self, start: &str, end: &str) -> wad::Result<Option<Lumps>> {
+    pub fn try_lumps_between(
+        self: &Arc<Self>,
+        start: &str,
+        end: &str,
+    ) -> wad::Result<Option<Lumps>> {
         let start_index = self.try_lump_index(start)?;
         let end_index = self.try_lump_index(end)?;
 
@@ -361,7 +373,7 @@ impl WadFile {
     /// For these lumps the last index returned.
     ///
     /// [Unofficial Doom Specs]: http://edge.sourceforge.net/edit_guide/doom_specs.htm
-    fn try_lump_index(&self, name: &str) -> wad::Result<Option<usize>> {
+    fn try_lump_index(self: &Arc<Self>, name: &str) -> wad::Result<Option<usize>> {
         let mut name = Cow::from(name);
 
         // Convert the name to uppercase like DOOM does. We have to emulate this because
@@ -381,7 +393,7 @@ impl WadFile {
             Some(indices) => {
                 let mut lumps: Vec<_> =
                     indices.iter().map(|&index| self.read_lump(index)).collect();
-                lumps.dedup_by_key(|lump| lump.data());
+                lumps.dedup_by(|l1, l2| l1.data() == l2.data());
 
                 if lumps.len() == 1 && lumps[0].has_data() {
                     Ok(Some(*indices.last().unwrap()))
@@ -393,22 +405,22 @@ impl WadFile {
     }
 
     /// Reads a lump from the raw data, pulling out a slice.
-    fn read_lump(&self, index: usize) -> Lump {
+    fn read_lump(self: &Arc<Self>, index: usize) -> Lump {
         let location = &self.lump_locations[index];
 
-        let file = self;
-        let name = &location.name;
-        let data = &self.raw[location.offset..][..location.size];
+        let file = Arc::clone(self);
+        let name = location.name.clone();
+        let data = self
+            .raw
+            .slice(location.offset..location.offset + location.size);
 
         Lump::new(file, name, data)
     }
 
     /// Reads one or more lumps from the raw data, pulling out slices.
-    fn read_lumps(&self, indices: Range<usize>) -> Lumps {
+    fn read_lumps(self: &Arc<Self>, indices: Range<usize>) -> Lumps {
         assert!(!indices.is_empty());
-
         let lumps = indices.map(|index| self.read_lump(index)).collect();
-
         Lumps::new(lumps)
     }
 
@@ -416,7 +428,7 @@ impl WadFile {
     ///
     /// An unordered dump of all lumps is rarely useful. This can be useful for debugging, or just
     /// to inspect the contents of a WAD. It's not used by any of the asset loading code.
-    pub fn lumps(&self) -> impl Iterator<Item = Lump<'_>> + DoubleEndedIterator {
+    pub fn lumps(self: &Arc<Self>) -> impl Iterator<Item = Lump> + DoubleEndedIterator {
         self.read_lumps(0..self.lump_indices.len()).into_iter()
     }
 
