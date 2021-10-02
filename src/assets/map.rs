@@ -13,7 +13,7 @@ use crate::wad::{self, Lump, Wad};
 pub struct Map {
     name: String,
     things: (),
-    vertexes: Vec<Vertex>,
+    vertexes: Vertexes,
     sidedefs: Sidedefs,
     linedefs: (),
     sectors: Sectors,
@@ -33,7 +33,7 @@ impl Map {
 
         let name = name.to_owned();
         let things = Self::read_things(lumps[1].expect_name("THINGS")?);
-        let vertexes = Vertex::load(lumps[4].expect_name("VERTEXES")?)?;
+        let vertexes = Vertexes::load(&lumps)?;
         let sectors = Sectors::load(&lumps)?;
         let sidedefs = Sidedefs::load(&lumps)?;
         let linedefs = Self::read_linedefs(lumps[2].expect_name("LINEDEFS")?);
