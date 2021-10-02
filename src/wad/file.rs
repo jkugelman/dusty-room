@@ -307,7 +307,7 @@ impl WadFile {
             return Err(self.error(format!("{} missing lumps", start)));
         }
 
-        Ok(Some(self.read_lumps(start_index..start_index + size)))
+        Ok(Some(self.read_lumps(start_index..start_index + size, true)))
     }
 
     /// Retrieves a block of lumps between unique start and end markers. The marker lumps are
@@ -356,7 +356,7 @@ impl WadFile {
             return Err(self.error(format!("{} after {}", start, end)));
         }
 
-        Ok(Some(self.read_lumps(start_index..end_index + 1)))
+        Ok(Some(self.read_lumps(start_index..end_index + 1, false)))
     }
 
     /// Looks up a lump's index.
@@ -424,10 +424,10 @@ impl WadFile {
     }
 
     /// Reads one or more lumps from the raw data, pulling out slices.
-    fn read_lumps(self: &Arc<Self>, indices: Range<usize>) -> Lumps {
+    fn read_lumps(self: &Arc<Self>, indices: Range<usize>, is_named: bool) -> Lumps {
         assert!(!indices.is_empty());
         let lumps = indices.map(|index| self.read_lump(index)).collect();
-        Lumps::new(lumps)
+        Lumps::new(lumps, is_named)
     }
 
     /// Retrieves all of the lumps in the file.
@@ -435,7 +435,8 @@ impl WadFile {
     /// An unordered dump of all lumps is rarely useful. This can be useful for debugging, or just
     /// to inspect the contents of a WAD. It's not used by any of the asset loading code.
     pub fn lumps(self: &Arc<Self>) -> impl Iterator<Item = Lump> + DoubleEndedIterator {
-        self.read_lumps(0..self.lump_indices.len()).into_iter()
+        self.read_lumps(0..self.lump_indices.len(), false)
+            .into_iter()
     }
 
     /// Creates a [`wad::Error::Malformed`] blaming this file.

@@ -31,7 +31,7 @@ impl Map {
             None => return Ok(None),
         };
 
-        let name = lumps.name().to_owned();
+        let name = name.to_owned();
         let things = Self::read_things(lumps[1].expect_name("THINGS")?);
         let vertexes = Vertex::load(lumps[4].expect_name("VERTEXES")?)?;
         let sectors = Sectors::load(&lumps)?;

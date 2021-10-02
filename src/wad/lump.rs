@@ -26,8 +26,17 @@ impl Lumps {
     /// # Panics
     ///
     /// Panics if `lumps` is empty.
-    pub(super) fn new(lumps: Vec<Lump>) -> Self {
+    pub(super) fn new(mut lumps: Vec<Lump>, is_named: bool) -> Self {
         assert!(!lumps.is_empty());
+
+        if is_named {
+            let name = lumps[0].name.clone();
+
+            for lump in lumps.iter_mut() {
+                *lump = lump.from_block(name.clone());
+            }
+        }
+
         Self(lumps)
     }
 
@@ -35,11 +44,6 @@ impl Lumps {
     pub fn file(&self) -> &Arc<WadFile> {
         // It doesn't matter which lump we look at. They all come from the same file.
         self.first().file()
-    }
-
-    /// The name of the first lump.
-    pub fn name(&self) -> &str {
-        self.first().name()
     }
 
     /// The first lump in the block.
@@ -110,6 +114,7 @@ impl<'a> IntoIterator for &'a mut Lumps {
 #[derive(Clone)]
 pub struct Lump {
     file: Arc<WadFile>,
+    block: Option<String>,
     name: String,
     data: Bytes,
 }
@@ -117,7 +122,19 @@ pub struct Lump {
 impl Lump {
     /// Creates a lump pointing at a slice of data from a `WadFile`.
     pub(super) fn new(file: Arc<WadFile>, name: String, data: Bytes) -> Self {
-        Self { file, name, data }
+        Self {
+            file,
+            block: None,
+            name,
+            data,
+        }
+    }
+
+    pub(super) fn from_block(&self, block: String) -> Self {
+        Self {
+            block: Some(block),
+            ..self.clone()
+        }
     }
 
     /// The file containing the lump.
@@ -178,14 +195,25 @@ impl Lump {
 
 impl fmt::Debug for Lump {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let Self { file, name, data } = self;
+        let Self {
+            file,
+            block,
+            name,
+            data,
+        } = self;
 
+        if let Some(block) = block {
+            write!(fmt, "{} ", block)?;
+        }
         write!(fmt, "{} ({} bytes) from {}", name, data.len(), file)
     }
 }
 
 impl fmt::Display for Lump {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        if let Some(ref block) = self.block {
+            write!(fmt, "{} ", block)?;
+        }
         write!(fmt, "{}", self.name)
     }
 }
