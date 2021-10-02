@@ -1,6 +1,8 @@
+pub use sector::*;
 pub use sidedef::*;
 pub use vertex::*;
 
+mod sector;
 mod sidedef;
 mod vertex;
 
@@ -8,7 +10,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::Arc;
 
-use crate::assets::TextureBank;
+use crate::assets::{FlatBank, TextureBank};
 use crate::wad::{self, Lump, Wad};
 
 #[derive(Debug)]
@@ -34,7 +36,7 @@ pub struct Map {
     vertexes: Vec<Vertex>,
     sidedefs: Sidedefs,
     linedefs: (),
-    sectors: (),
+    sectors: Sectors,
 }
 
 impl Map {
@@ -43,7 +45,12 @@ impl Map {
     /// # Errors
     ///
     /// Returns `Ok(None)` if the map is missing.
-    pub fn load(wad: &Wad, name: &str, texture_bank: &TextureBank) -> wad::Result<Option<Self>> {
+    pub fn load(
+        wad: &Wad,
+        name: &str,
+        flat_bank: &FlatBank,
+        texture_bank: &TextureBank,
+    ) -> wad::Result<Option<Self>> {
         let lumps = match wad.try_lumps_following(name, 11)? {
             Some(lumps) => lumps,
             None => return Ok(None),
@@ -52,7 +59,7 @@ impl Map {
         let name = lumps.name().to_owned();
         let things = Self::read_things(lumps[1].expect_name("THINGS")?);
         let vertexes = Vertex::load(lumps[4].expect_name("VERTEXES")?)?;
-        let sectors = Self::read_sectors(lumps[8].expect_name("SECTORS")?);
+        let sectors = Sectors::load(&lumps, flat_bank)?;
         let sidedefs = Sidedefs::load(&lumps, texture_bank)?;
         let linedefs = Self::read_linedefs(lumps[2].expect_name("LINEDEFS")?);
 

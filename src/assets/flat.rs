@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::fmt;
+use std::sync::Arc;
 
 use bytes::Bytes;
 
@@ -7,7 +8,7 @@ use crate::wad::{self, Lump, Wad};
 
 /// A list of floor and ceiling textures, indexed by name.
 #[derive(Clone)]
-pub struct FlatBank(BTreeMap<String, Flat>);
+pub struct FlatBank(BTreeMap<String, Arc<Flat>>);
 
 impl FlatBank {
     /// Loads all the flats from a [`Wad`].
@@ -22,7 +23,7 @@ impl FlatBank {
                 continue;
             }
 
-            let flat = Flat::load(&lump)?;
+            let flat = Arc::new(Flat::load(&lump)?);
             let existing = flats.insert(flat.name.clone(), flat);
 
             if existing.is_some() {
@@ -33,7 +34,7 @@ impl FlatBank {
         Ok(Self(flats))
     }
 
-    pub fn get(&self, name: &str) -> Option<&Flat> {
+    pub fn get(&self, name: &str) -> Option<&Arc<Flat>> {
         self.0.get(name)
     }
 }

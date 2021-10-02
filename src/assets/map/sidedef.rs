@@ -70,5 +70,3 @@ pub struct Sidedef {
     middle_texture: Option<Arc<Texture>>,
     sector_index: u16,
 }
-
-impl Sidedef {}
