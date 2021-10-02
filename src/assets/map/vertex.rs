@@ -28,10 +28,13 @@ impl Vertex {
         let mut vertexes = Vec::with_capacity(lump.size() / 4);
 
         while !cursor.has_remaining() {
-            let x = cursor.need(2)?.get_i16_le();
-            let y = cursor.need(2)?.get_i16_le();
+            cursor.need(4)?;
+            let x = cursor.get_i16_le();
+            let y = cursor.get_i16_le();
             vertexes.push(Self::new(x, y));
         }
+
+        cursor.done()?;
 
         Ok(vertexes)
     }

@@ -88,14 +88,15 @@ impl Texture {
         let mut cursor = lump.cursor();
         cursor.need(offset)?.advance(offset);
 
-        let name = cursor.need(8)?.get_name();
-        let _flags = cursor.need(2)?.get_u16_le();
-        let _unused = cursor.need(2)?.get_u16_le();
-        let width = cursor.need(2)?.get_u16_le();
-        let height = cursor.need(2)?.get_u16_le();
-        let _unused = cursor.need(4)?.get_u32_le();
+        cursor.need(22)?;
+        let name = cursor.get_name();
+        let _flags = cursor.get_u16_le();
+        let _unused = cursor.get_u16_le();
+        let width = cursor.get_u16_le();
+        let height = cursor.get_u16_le();
+        let _unused = cursor.get_u32_le();
 
-        let patch_count = cursor.need(2)?.get_u16_le();
+        let patch_count = cursor.get_u16_le();
         let mut patches = Vec::with_capacity(patch_count.clamp(0, 64).into());
         for _ in 0..patch_count {
             patches.push(PatchPlacement::load(lump, &mut cursor, patch_bank)?);
@@ -137,11 +138,12 @@ struct PatchPlacement {
 
 impl PatchPlacement {
     pub fn load(lump: &Lump, cursor: &mut Cursor, patches: &PatchBank) -> wad::Result<Self> {
-        let x = cursor.need(2)?.get_u16_le();
-        let y = cursor.need(2)?.get_u16_le();
-        let patch_index = cursor.need(2)?.get_u16_le();
-        let _unused = cursor.need(2)?.get_u16_le();
-        let _unused = cursor.need(2)?.get_u16_le();
+        cursor.need(10)?;
+        let x = cursor.get_u16_le();
+        let y = cursor.get_u16_le();
+        let patch_index = cursor.get_u16_le();
+        let _unused = cursor.get_u16_le();
+        let _unused = cursor.get_u16_le();
 
         let patch: &Arc<Patch> = patches.get(patch_index).map_err(|err| match err {
             None => lump.error(format!("bad patch index {}", patch_index)),

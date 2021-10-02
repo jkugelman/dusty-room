@@ -27,9 +27,10 @@ impl PatchBank {
 
         let count = cursor.need(4)?.get_u32_le();
         let mut patches = Vec::with_capacity(count.clamp(0, 1024) as usize);
+        cursor.need((count * 8).try_into().unwrap())?;
 
         for _ in 0..count {
-            let name = cursor.need(8)?.get_name();
+            let name = cursor.get_name();
             let lump = wad.try_lump(&name)?;
             let patch = lump.as_ref().map(Patch::load).transpose()?.map(Arc::new);
             patches.push((name, patch));
@@ -101,16 +102,18 @@ impl Patch {
     pub fn load(lump: &Lump) -> wad::Result<Self> {
         let mut cursor = lump.cursor();
 
+        cursor.need(8)?;
         let name = lump.name().to_owned();
-        let width = cursor.need(2)?.get_u16_le();
-        let height = cursor.need(2)?.get_u16_le();
-        let y = cursor.need(2)?.get_i16_le();
-        let x = cursor.need(2)?.get_i16_le();
+        let width = cursor.get_u16_le();
+        let height = cursor.get_u16_le();
+        let y = cursor.get_i16_le();
+        let x = cursor.get_i16_le();
 
         // Read column offsets. The WAD is untrusted so clamp how much memory is pre-allocated.
         let mut column_offsets = Vec::with_capacity(width.clamp(0, 512).into());
+        cursor.need((4 * width).into())?;
         for _ in 0..width {
-            column_offsets.push(cursor.need(4)?.get_u32_le());
+            column_offsets.push(cursor.get_u32_le());
         }
 
         cursor.clear();
