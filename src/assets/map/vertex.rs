@@ -2,7 +2,15 @@ use bytes::Buf;
 
 use crate::wad::{self, Lump};
 
-#[derive(Clone, Debug)]
+/// Vertexes are the start and end points of [`Linedef`]s and [`Seg`]s.
+///
+/// Wannabe pedants should note that according to [Merriam-Webster] the plural of "vertex" can be
+/// either "vertices" or "vertexes". In this codebase we use id Software's spelling.
+///
+/// [`Linedef`]: crate::assets::Linedef
+/// [`Seg`]: crate::assets::Seg
+/// [Merriam-Webster]: https://www.merriam-webster.com/dictionary/vertex
+#[derive(Debug)]
 pub struct Vertex {
     x: i16,
     y: i16,

@@ -8,7 +8,6 @@ use std::borrow::Borrow;
 pub fn parse_name(raw: &[u8; 8]) -> String {
     let nul_index = raw.iter().position(|&ch| ch == b'\0').unwrap_or(raw.len());
     let raw = &raw[..nul_index];
-
     raw.iter().copied().map(|b| b as char).collect()
 }
 
@@ -27,7 +26,6 @@ impl<S: Borrow<str>> NameExt for S {
         let good_length = !name.is_empty() && name.len() <= 8;
         let has_illegal_char =
             name.contains(|ch| !matches!(ch, 'A'..='Z' | '0'..='9' | '[' | ']' | '-' | '_' | '\\'));
-
         good_length && !has_illegal_char
     }
 }

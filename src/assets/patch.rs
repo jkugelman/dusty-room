@@ -56,8 +56,8 @@ impl PatchBank {
     ///
     /// Returns `Err(None)` if the index is out of range.
     ///
-    /// Returns `Err(Some(name))` if `PNAMES` had the name of a missing patch, as happens with the
-    /// shareware version of `doom.wad`.
+    /// Returns `Err(Some(name))` with the missing patch name if `PNAMES` lists the name of a
+    /// missing patch, as happens with the shareware version of `doom.wad`.
     pub fn get(&self, index: u16) -> Result<&Arc<Patch>, Option<&str>> {
         let (name, patch): &(String, Option<Arc<Patch>>) =
             self.0.get(usize::from(index)).ok_or(None)?;

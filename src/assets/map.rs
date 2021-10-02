@@ -1,26 +1,30 @@
+pub use sidedef::*;
 pub use vertex::*;
 
+mod sidedef;
 mod vertex;
 
 use std::collections::BTreeMap;
 use std::fmt;
+use std::sync::Arc;
 
+use crate::assets::TextureBank;
 use crate::wad::{self, Lump, Wad};
 
 #[derive(Debug)]
 pub struct MapBank {
-    maps: BTreeMap<String, Map>,
+    maps: BTreeMap<String, Arc<Map>>,
 }
 
 impl MapBank {
-    pub fn load(wad: &Wad) -> wad::Result<Self> {
+    pub fn load(_wad: &Wad, _texture_bank: &TextureBank) -> wad::Result<Self> {
         let maps = BTreeMap::new();
 
         Ok(Self { maps })
     }
 
-    pub fn get(&self, name: &str) -> Option<&Map> {
-        todo!()
+    pub fn get(&self, name: &str) -> Option<&Arc<Map>> {
+        self.maps.get(name)
     }
 }
 
@@ -28,8 +32,8 @@ pub struct Map {
     name: String,
     things: (),
     vertexes: Vec<Vertex>,
-    sides: (),
-    lines: (),
+    sidedefs: Sidedefs,
+    linedefs: (),
     sectors: (),
 }
 
@@ -39,34 +43,32 @@ impl Map {
     /// # Errors
     ///
     /// Returns `Ok(None)` if the map is missing.
-    pub fn load(wad: &Wad, name: &str) -> wad::Result<Option<Self>> {
-        let lumps = wad.try_lumps_following(name, 11)?;
-        if lumps.is_none() {
-            return Ok(None);
-        }
-        let lumps = lumps.unwrap();
+    pub fn load(wad: &Wad, name: &str, texture_bank: &TextureBank) -> wad::Result<Option<Self>> {
+        let lumps = match wad.try_lumps_following(name, 11)? {
+            Some(lumps) => lumps,
+            None => return Ok(None),
+        };
 
         let name = lumps.name().to_owned();
         let things = Self::read_things(lumps[1].expect_name("THINGS")?);
         let vertexes = Vertex::load(lumps[4].expect_name("VERTEXES")?)?;
         let sectors = Self::read_sectors(lumps[8].expect_name("SECTORS")?);
-        let sides = Self::read_sides(lumps[3].expect_name("SIDEDEFS")?);
-        let lines = Self::read_lines(lumps[2].expect_name("LINEDEFS")?);
+        let sidedefs = Sidedefs::load(&lumps, texture_bank)?;
+        let linedefs = Self::read_linedefs(lumps[2].expect_name("LINEDEFS")?);
 
         Ok(Some(Map {
             name,
             things,
             vertexes,
-            sides,
-            lines,
+            sidedefs,
+            linedefs,
             sectors,
         }))
     }
 
     fn read_things(_lump: &Lump) {}
     fn read_sectors(_lump: &Lump) {}
-    fn read_sides(_lump: &Lump) {}
-    fn read_lines(_lump: &Lump) {}
+    fn read_linedefs(_lump: &Lump) {}
 }
 
 impl fmt::Debug for Map {
@@ -75,8 +77,8 @@ impl fmt::Debug for Map {
             name,
             things,
             vertexes,
-            sides,
-            lines,
+            sidedefs,
+            linedefs,
             sectors,
         } = self;
 
@@ -84,8 +86,8 @@ impl fmt::Debug for Map {
             .field("name", &name)
             .field("things", &things)
             .field("vertexes", &vertexes)
-            .field("sides", &sides)
-            .field("lines", &lines)
+            .field("sidedefs", &sidedefs)
+            .field("linedefs", &linedefs)
             .field("sectors", &sectors)
             .finish()
     }
@@ -104,11 +106,13 @@ mod tests {
 
     #[test]
     fn load() {
-        let maps = MapBank::load(&DOOM_WAD).unwrap();
+        let texture_bank = TextureBank::load(&DOOM_WAD).unwrap();
+        let maps = MapBank::load(&DOOM_WAD, &texture_bank).unwrap();
         assert_matches!(maps.get("E1M1"), Some(_));
         assert_matches!(maps.get("E9M9"), None);
 
-        let maps = MapBank::load(&DOOM2_WAD).unwrap();
+        let texture_bank = TextureBank::load(&DOOM2_WAD).unwrap();
+        let maps = MapBank::load(&DOOM2_WAD, &texture_bank).unwrap();
         assert_matches!(maps.get("MAP31"), Some(_));
         assert_matches!(maps.get("MAP99"), None);
     }

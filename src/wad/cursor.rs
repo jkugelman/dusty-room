@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::convert::TryInto;
 use std::ops::{Deref, DerefMut};
 
@@ -84,6 +85,11 @@ impl Cursor<'_> {
     /// Panics if there are fewer than 8 bytes remaining.
     pub fn get_name(&mut self) -> String {
         parse_name(self.split_to(8).as_ref().try_into().unwrap())
+    }
+
+    /// Creates a [`wad::Error::Malformed`] blaming this cursor's lump.
+    pub fn error(&self, desc: impl Into<Cow<'static, str>>) -> wad::Error {
+        self.lump.error(desc)
     }
 }
 

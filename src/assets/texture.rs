@@ -9,7 +9,7 @@ use crate::assets::{Patch, PatchBank};
 use crate::wad::{self, Cursor, Lump, Wad};
 
 #[derive(Clone, Debug)]
-pub struct TextureBank(BTreeMap<String, Texture>);
+pub struct TextureBank(BTreeMap<String, Arc<Texture>>);
 
 impl TextureBank {
     /// Loads all the textures from a [`Wad`].
@@ -34,7 +34,7 @@ impl TextureBank {
 
     fn load_from(
         lump: &Lump,
-        textures: &mut BTreeMap<String, Texture>,
+        textures: &mut BTreeMap<String, Arc<Texture>>,
         patch_bank: &PatchBank,
     ) -> wad::Result<()> {
         let mut cursor = lump.cursor();
@@ -55,20 +55,20 @@ impl TextureBank {
         // Read textures.
         for offset in offsets {
             let texture = Texture::load(lump, offset.try_into().unwrap(), patch_bank)?;
-            textures.insert(texture.name().to_owned(), texture);
+            textures.insert(texture.name().to_owned(), Arc::new(texture));
         }
 
         Ok(())
     }
 
     /// Retrieves a texture by name.
-    pub fn get(&self, name: &str) -> Option<&Texture> {
+    pub fn get(&self, name: &str) -> Option<&Arc<Texture>> {
         self.0.get(name)
     }
 }
 
 impl Index<&str> for TextureBank {
-    type Output = Texture;
+    type Output = Arc<Texture>;
 
     fn index(&self, name: &str) -> &Self::Output {
         &self.0[name]
