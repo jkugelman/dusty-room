@@ -1,7 +1,6 @@
 use std::convert::TryInto;
 use std::fmt;
 use std::ops::Index;
-use std::sync::Arc;
 
 use bytes::{Buf, Bytes};
 
@@ -14,7 +13,7 @@ use crate::wad::{self, Lump, Wad};
 /// still lists all of the patches. It still loads because none of the textures in `TEXTURE1` use
 /// the missing patches.
 #[derive(Clone, Debug)]
-pub struct PatchBank(Vec<(String, Option<Arc<Patch>>)>);
+pub struct PatchBank(Vec<(String, Option<Patch>)>);
 
 impl PatchBank {
     /// Loads all the patches from a [`Wad`].
@@ -32,7 +31,7 @@ impl PatchBank {
         for _ in 0..count {
             let name = cursor.get_name();
             let lump = wad.try_lump(&name)?;
-            let patch = lump.as_ref().map(Patch::load).transpose()?.map(Arc::new);
+            let patch = lump.as_ref().map(Patch::load).transpose()?;
             patches.push((name, patch));
         }
 
@@ -59,9 +58,8 @@ impl PatchBank {
     ///
     /// Returns `Err(Some(name))` with the missing patch name if `PNAMES` lists the name of a
     /// missing patch, as happens with the shareware version of `doom.wad`.
-    pub fn get(&self, index: u16) -> Result<&Arc<Patch>, Option<&str>> {
-        let (name, patch): &(String, Option<Arc<Patch>>) =
-            self.0.get(usize::from(index)).ok_or(None)?;
+    pub fn get(&self, index: u16) -> Result<&Patch, Option<&str>> {
+        let (name, patch): &(String, Option<Patch>) = self.0.get(usize::from(index)).ok_or(None)?;
         patch.as_ref().ok_or(Some(name))
     }
 }
@@ -79,23 +77,23 @@ impl Index<u16> for PatchBank {
 /// [`Texture`]: crate::assets::Texture
 #[derive(Clone)]
 pub struct Patch {
-    name: String,
-    width: u16,
-    height: u16,
-    x: i16,
-    y: i16,
-    columns: Vec<Column>,
+    pub name: String,
+    pub width: u16,
+    pub height: u16,
+    pub x: i16,
+    pub y: i16,
+    pub columns: Vec<Column>,
 }
 
 #[derive(Debug, Clone)]
-struct Column {
-    posts: Vec<Post>,
+pub struct Column {
+    pub posts: Vec<Post>,
 }
 
 #[derive(Clone)]
-struct Post {
-    y_offset: u16,
-    pixels: Bytes,
+pub struct Post {
+    pub y_offset: u16,
+    pub pixels: Bytes,
 }
 
 impl Patch {

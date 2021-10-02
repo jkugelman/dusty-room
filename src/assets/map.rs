@@ -6,29 +6,9 @@ mod sector;
 mod sidedef;
 mod vertex;
 
-use std::collections::BTreeMap;
 use std::fmt;
-use std::sync::Arc;
 
-use crate::assets::{FlatBank, TextureBank};
 use crate::wad::{self, Lump, Wad};
-
-#[derive(Debug)]
-pub struct MapBank {
-    maps: BTreeMap<String, Arc<Map>>,
-}
-
-impl MapBank {
-    pub fn load(_wad: &Wad, _texture_bank: &TextureBank) -> wad::Result<Self> {
-        let maps = BTreeMap::new();
-
-        Ok(Self { maps })
-    }
-
-    pub fn get(&self, name: &str) -> Option<&Arc<Map>> {
-        self.maps.get(name)
-    }
-}
 
 pub struct Map {
     name: String,
@@ -45,12 +25,7 @@ impl Map {
     /// # Errors
     ///
     /// Returns `Ok(None)` if the map is missing.
-    pub fn load(
-        wad: &Wad,
-        name: &str,
-        flat_bank: &FlatBank,
-        texture_bank: &TextureBank,
-    ) -> wad::Result<Option<Self>> {
+    pub fn load(wad: &Wad, name: &str) -> wad::Result<Option<Self>> {
         let lumps = match wad.try_lumps_following(name, 11)? {
             Some(lumps) => lumps,
             None => return Ok(None),
@@ -59,8 +34,8 @@ impl Map {
         let name = lumps.name().to_owned();
         let things = Self::read_things(lumps[1].expect_name("THINGS")?);
         let vertexes = Vertex::load(lumps[4].expect_name("VERTEXES")?)?;
-        let sectors = Sectors::load(&lumps, flat_bank)?;
-        let sidedefs = Sidedefs::load(&lumps, texture_bank)?;
+        let sectors = Sectors::load(&lumps)?;
+        let sidedefs = Sidedefs::load(&lumps)?;
         let linedefs = Self::read_linedefs(lumps[2].expect_name("LINEDEFS")?);
 
         Ok(Some(Map {
@@ -74,7 +49,6 @@ impl Map {
     }
 
     fn read_things(_lump: &Lump) {}
-    fn read_sectors(_lump: &Lump) {}
     fn read_linedefs(_lump: &Lump) {}
 }
 
@@ -113,14 +87,10 @@ mod tests {
 
     #[test]
     fn load() {
-        let texture_bank = TextureBank::load(&DOOM_WAD).unwrap();
-        let maps = MapBank::load(&DOOM_WAD, &texture_bank).unwrap();
-        assert_matches!(maps.get("E1M1"), Some(_));
-        assert_matches!(maps.get("E9M9"), None);
+        assert_matches!(Map::load(&DOOM_WAD, "E1M1").unwrap(), Some(_));
+        assert_matches!(Map::load(&DOOM_WAD, "E9M9").unwrap(), None);
 
-        let texture_bank = TextureBank::load(&DOOM2_WAD).unwrap();
-        let maps = MapBank::load(&DOOM2_WAD, &texture_bank).unwrap();
-        assert_matches!(maps.get("MAP31"), Some(_));
-        assert_matches!(maps.get("MAP99"), None);
+        assert_matches!(Map::load(&DOOM2_WAD, "MAP31").unwrap(), Some(_));
+        assert_matches!(Map::load(&DOOM2_WAD, "MAP99").unwrap(), None);
     }
 }

@@ -1,26 +1,22 @@
 use std::collections::BTreeMap;
 use std::convert::TryInto;
-use std::ops::Index;
-use std::sync::Arc;
 
 use bytes::Buf;
 
-use crate::assets::{Patch, PatchBank};
 use crate::wad::{self, Cursor, Lump, Wad};
 
 #[derive(Clone, Debug)]
-pub struct TextureBank(BTreeMap<String, Arc<Texture>>);
+pub struct TextureBank(BTreeMap<String, Texture>);
 
 impl TextureBank {
     /// Loads all the textures from a [`Wad`].
     ///
     /// Textures are listed in the `TEXTURE1` and `TEXTURE2` lumps.
     pub fn load(wad: &Wad) -> wad::Result<Self> {
-        let patches = PatchBank::load(wad)?;
         let mut textures = BTreeMap::new();
 
         for lump in Self::texture_lumps(wad)? {
-            Self::load_from(&lump, &mut textures, &patches)?;
+            Self::load_from(&lump, &mut textures)?;
         }
 
         Ok(Self(textures))
@@ -32,11 +28,7 @@ impl TextureBank {
         Ok(iter.collect())
     }
 
-    fn load_from(
-        lump: &Lump,
-        textures: &mut BTreeMap<String, Arc<Texture>>,
-        patch_bank: &PatchBank,
-    ) -> wad::Result<()> {
+    fn load_from(lump: &Lump, textures: &mut BTreeMap<String, Texture>) -> wad::Result<()> {
         let mut cursor = lump.cursor();
 
         let count = cursor.need(4)?.get_u32_le();
@@ -54,37 +46,29 @@ impl TextureBank {
 
         // Read textures.
         for offset in offsets {
-            let texture = Texture::load(lump, offset.try_into().unwrap(), patch_bank)?;
-            textures.insert(texture.name().to_owned(), Arc::new(texture));
+            let texture = Texture::load(lump, offset.try_into().unwrap())?;
+            textures.insert(texture.name().to_owned(), texture);
         }
 
         Ok(())
     }
 
     /// Retrieves a texture by name.
-    pub fn get(&self, name: &str) -> Option<&Arc<Texture>> {
+    pub fn get(&self, name: &str) -> Option<&Texture> {
         self.0.get(name)
-    }
-}
-
-impl Index<&str> for TextureBank {
-    type Output = Arc<Texture>;
-
-    fn index(&self, name: &str) -> &Self::Output {
-        &self.0[name]
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct Texture {
-    name: String,
-    width: u16,
-    height: u16,
-    patches: Vec<PatchPlacement>,
+    pub name: String,
+    pub width: u16,
+    pub height: u16,
+    pub patches: Vec<PatchPlacement>,
 }
 
 impl Texture {
-    fn load(lump: &Lump, offset: usize, patch_bank: &PatchBank) -> wad::Result<Self> {
+    fn load(lump: &Lump, offset: usize) -> wad::Result<Self> {
         let mut cursor = lump.cursor();
         cursor.need(offset)?.advance(offset);
 
@@ -96,10 +80,18 @@ impl Texture {
         let height = cursor.get_u16_le();
         let _unused = cursor.get_u32_le();
 
-        let patch_count = cursor.get_u16_le();
-        let mut patches = Vec::with_capacity(patch_count.clamp(0, 64).into());
+        let patch_count: usize = cursor.get_u16_le().into();
+        let mut patches = Vec::with_capacity(patch_count.clamp(0, 64));
+        cursor.need(patch_count * 10)?;
+
         for _ in 0..patch_count {
-            patches.push(PatchPlacement::load(lump, &mut cursor, patch_bank)?);
+            let x = cursor.get_u16_le();
+            let y = cursor.get_u16_le();
+            let patch = cursor.get_u16_le();
+            let _unused = cursor.get_u16_le();
+            let _unused = cursor.get_u16_le();
+
+            patches.push(PatchPlacement { x, y, patch });
         }
 
         cursor.clear();
@@ -130,26 +122,20 @@ impl Texture {
 }
 
 #[derive(Clone, Debug)]
-struct PatchPlacement {
-    x: u16,
-    y: u16,
-    patch: Arc<Patch>,
+pub struct PatchPlacement {
+    pub x: u16,
+    pub y: u16,
+    pub patch: u16,
 }
 
 impl PatchPlacement {
-    pub fn load(lump: &Lump, cursor: &mut Cursor, patches: &PatchBank) -> wad::Result<Self> {
+    pub fn load(cursor: &mut Cursor) -> wad::Result<Self> {
         cursor.need(10)?;
         let x = cursor.get_u16_le();
         let y = cursor.get_u16_le();
-        let patch_index = cursor.get_u16_le();
+        let patch = cursor.get_u16_le();
         let _unused = cursor.get_u16_le();
         let _unused = cursor.get_u16_le();
-
-        let patch: &Arc<Patch> = patches.get(patch_index).map_err(|err| match err {
-            None => lump.error(format!("bad patch index {}", patch_index)),
-            Some(patch_name) => lump.error(format!("texture needs missing patch {}", patch_name)),
-        })?;
-        let patch = Arc::clone(patch);
 
         Ok(Self { x, y, patch })
     }
@@ -158,10 +144,12 @@ impl PatchPlacement {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::assets::PatchBank;
     use crate::wad::test::*;
 
     #[test]
     fn load() {
+        let patches = PatchBank::load(&BIOTECH_WAD).unwrap();
         let textures = TextureBank::load(&BIOTECH_WAD).unwrap();
 
         let exit_door = textures.get("EXITDOOR").unwrap();
@@ -171,15 +159,27 @@ mod tests {
         assert_eq!(exit_door.patches.len(), 4);
         assert_eq!(exit_door.patches[0].x, 0);
         assert_eq!(exit_door.patches[0].y, 0);
-        assert_eq!(exit_door.patches[0].patch.name(), "DOOR3_6");
+        assert_eq!(
+            patches.get(exit_door.patches[0].patch).unwrap().name,
+            "DOOR3_6"
+        );
         assert_eq!(exit_door.patches[1].x, 64);
         assert_eq!(exit_door.patches[1].y, 0);
-        assert_eq!(exit_door.patches[1].patch.name(), "DOOR3_4");
+        assert_eq!(
+            patches.get(exit_door.patches[1].patch).unwrap().name,
+            "DOOR3_4"
+        );
         assert_eq!(exit_door.patches[2].x, 88);
         assert_eq!(exit_door.patches[2].y, 0);
-        assert_eq!(exit_door.patches[2].patch.name(), "DOOR3_5");
+        assert_eq!(
+            patches.get(exit_door.patches[2].patch).unwrap().name,
+            "DOOR3_5"
+        );
         assert_eq!(exit_door.patches[3].x, 112);
         assert_eq!(exit_door.patches[3].y, 0);
-        assert_eq!(exit_door.patches[3].patch.name(), "T14_5");
+        assert_eq!(
+            patches.get(exit_door.patches[3].patch).unwrap().name,
+            "T14_5"
+        );
     }
 }

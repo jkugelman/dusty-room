@@ -1,5 +1,4 @@
 use crate::assets::FlatBank;
-use crate::assets::MapBank;
 use crate::assets::PaletteBank;
 use crate::assets::TextureBank;
 use crate::wad::{self, Wad};
@@ -10,7 +9,6 @@ pub struct Assets {
     _palette_bank: PaletteBank,
     _flat_bank: FlatBank,
     texture_bank: TextureBank,
-    _map_bank: MapBank,
 }
 
 impl Assets {
@@ -19,13 +17,11 @@ impl Assets {
         let _palette_bank = PaletteBank::load(wad)?;
         let _flat_bank = FlatBank::load(wad)?;
         let texture_bank = TextureBank::load(wad)?;
-        let _map_bank = MapBank::load(wad, &texture_bank)?;
 
         Ok(Assets {
             _palette_bank,
             _flat_bank,
             texture_bank,
-            _map_bank,
         })
     }
 }

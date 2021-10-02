@@ -27,7 +27,7 @@ impl Vertex {
 
         let mut vertexes = Vec::with_capacity(lump.size() / 4);
 
-        while !cursor.has_remaining() {
+        while cursor.has_remaining() {
             cursor.need(4)?;
             let x = cursor.get_i16_le();
             let y = cursor.get_i16_le();
