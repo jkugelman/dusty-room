@@ -70,14 +70,18 @@ pub struct Sector {
     /// Ceiling height.
     pub ceiling_height: i16,
 
-    /// Name of the flat used for the floor texture.
+    /// Name of the [flat] used for the floor texture.
+    ///
+    /// [flat]: crate::assets::Flat
     pub floor_flat: String,
 
-    /// Name of the flat used for the ceiling texture.
+    /// Name of the [flat] used for the ceiling texture.
+    ///
+    /// [flat]: crate::assets::Flat
     pub ceiling_flat: String,
 
-    /// Light level of this sector, from 0 (total dark) to 255 (maximum brightness). There are
-    /// actually only 32 brightnesses possible: 0-7 are the same, ..., 248-255 are the same.
+    /// Light level from 0 (total dark) to 255 (maximum brightness). There are actually only 32
+    /// brightnesses possible: 0-7 are the same, ..., 248-255 are the same.
     pub light_level: u8,
 
     pub special_type: u16,
