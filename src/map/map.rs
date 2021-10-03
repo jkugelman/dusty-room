@@ -41,8 +41,8 @@ impl Map {
         let name = name.to_owned();
         let things = Self::read_things(lumps[1].expect_name("THINGS")?);
         let vertexes = Vertexes::load(&lumps)?;
-        let sectors = Sectors::load(&lumps, &assets)?;
-        let sidedefs = Sidedefs::load(&lumps, &assets, &sectors)?;
+        let sectors = Sectors::load(&lumps, assets)?;
+        let sidedefs = Sidedefs::load(&lumps, assets, &sectors)?;
         let linedefs = Linedefs::load(&lumps, &vertexes, &sidedefs)?;
 
         Ok(Some(Map {

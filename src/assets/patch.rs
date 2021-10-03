@@ -184,7 +184,7 @@ impl Patch {
             cursor.need(1)?;
             let length = cursor.get_u8() as usize;
 
-            cursor.need(usize::from(length) + 2)?;
+            cursor.need(length + 2)?;
             let _unused = cursor.get_u8();
             let pixels = cursor.split_to(length);
             let _unused = cursor.get_u8();

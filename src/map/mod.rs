@@ -1,11 +1,11 @@
 pub use linedef::*;
-#[allow(clippy::module_inception)]
 pub use map::*;
 pub use sector::*;
 pub use sidedef::*;
 pub use vertex::*;
 
 mod linedef;
+#[allow(clippy::module_inception)]
 mod map;
 mod sector;
 mod sidedef;
