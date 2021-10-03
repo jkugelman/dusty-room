@@ -11,16 +11,11 @@ use crate::wad::{self, parse_name, Lump};
 pub struct Cursor<'lump> {
     lump: &'lump Lump,
     data: Bytes,
-    done: bool,
 }
 
 impl<'lump> Cursor<'lump> {
     pub(super) fn new(lump: &'lump Lump, data: Bytes) -> Self {
-        Self {
-            lump,
-            data,
-            done: false,
-        }
+        Self { lump, data }
     }
 }
 
@@ -41,9 +36,9 @@ impl Cursor<'_> {
         Ok(())
     }
 
-    /// Checks if there is unread data, then drops the cursor. This function **must** be called when
-    /// parsing is finished. If the cursor is dropped without calling `done` it will panic. You can
-    /// [`clear`] the cursor if you don't care if there's unread data.
+    /// Checks if there is unread data, then drops the cursor. This function should always be called
+    /// when parsing is completes successfully to ensure there is no extra trailing data. You can
+    /// [`clear`] the cursor if trailing data is expected.
     ///
     /// [`clear`]: Bytes::clear
     ///
@@ -63,9 +58,7 @@ impl Cursor<'_> {
     /// cursor.clear();
     /// cursor.done()?;
     /// ```
-    pub fn done(mut self) -> wad::Result<()> {
-        self.done = true;
-
+    pub fn done(self) -> wad::Result<()> {
         if self.is_empty() {
             Ok(())
         } else {
@@ -107,14 +100,5 @@ impl Deref for Cursor<'_> {
 impl DerefMut for Cursor<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.data
-    }
-}
-
-impl Drop for Cursor<'_> {
-    /// # Panics
-    ///
-    /// Panics if you forgot to call `self.done()?`.
-    fn drop(&mut self) {
-        assert!(self.done, "did not call cursor.done()");
     }
 }
