@@ -4,7 +4,10 @@ use bytes::Buf;
 
 use crate::wad::{self, Lumps};
 
-/// A list of [`Sector`]s indexed by number. Each map has unique sectors.
+/// A list of [sectors] for a particular [map], indexed by number.
+///
+/// [sectors]: Sector
+/// [map]: crate::assets::Map
 #[derive(Debug)]
 pub struct Sectors(Vec<Sector>);
 
@@ -43,12 +46,13 @@ impl Sectors {
     }
 }
 
-/// A `Sector` is a horizontal (east-west and north-south) area of the map where a floor height and
-/// ceiling height are defined. Its shape its defined by its [sidedefs]. Any change in floor or
-/// ceiling height or texture requires a new sector (and therefore separating [linedefs] and
-/// sidedefs).
+/// A horizontal (east-west and north-south) area of the [map] where a floor height and ceiling
+/// height are defined. Its shape its defined by its [sidedefs]. Any change in floor or ceiling
+/// height or [texture] requires a new sector (and therefore separating [linedefs] and sidedefs).
 ///
+/// [map]: crate::assets::Map
 /// [sidedefs]: crate::assets::Sidedef
+/// [texture]: crate::assets::Texture
 /// [linedefs]: crate::assets::Linedef
 #[derive(Debug)]
 pub struct Sector {

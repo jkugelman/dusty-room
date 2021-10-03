@@ -12,8 +12,7 @@ use std::fmt;
 
 use crate::wad::{self, Lump, Wad};
 
-/// A map such as `E1M1`. Contains all the level geometry, monsters, items, and other things that
-/// make up a map.
+/// Contains all the level geometry, monsters, items, and other things that make up a map.
 #[derive(Debug)]
 pub struct Map {
     name: String,
@@ -25,7 +24,7 @@ pub struct Map {
 }
 
 impl Map {
-    /// Loads a map, typically named `ExMy` for DOOM or `MAPnn` for DOOM II.
+    /// Loads a map. Maps are typically named `ExMy` for DOOM or `MAPnn` for DOOM II.
     ///
     /// # Errors
     ///

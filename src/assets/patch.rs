@@ -72,7 +72,7 @@ impl Index<u16> for PatchBank {
     }
 }
 
-/// A patch is an image that is used as the building block for a composite [texture].
+/// An image that is used as the building block for a composite [texture].
 ///
 /// [texture]: crate::assets::Texture
 #[derive(Clone)]

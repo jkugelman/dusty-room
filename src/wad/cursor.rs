@@ -36,11 +36,9 @@ impl Cursor<'_> {
         }
     }
 
-    /// Checks if there is unread data, then drops the cursor.
-    ///
-    /// This function **must** be called when parsing is finished. If the cursor is dropped without
-    /// calling `done` it will panic. You can [`clear`] the cursor if you don't care if there's
-    /// unread data.
+    /// Checks if there is unread data, then drops the cursor. This function **must** be called when
+    /// parsing is finished. If the cursor is dropped without calling `done` it will panic. You can
+    /// [`clear`] the cursor if you don't care if there's unread data.
     ///
     /// [`clear`]: Bytes::clear
     ///
@@ -110,7 +108,7 @@ impl DerefMut for Cursor<'_> {
 impl Drop for Cursor<'_> {
     /// # Panics
     ///
-    /// Panics if there's unread data.
+    /// Panics if you forgot to call `self.done()?`.
     fn drop(&mut self) {
         assert!(self.done, "did not call cursor.done()");
     }

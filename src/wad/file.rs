@@ -15,7 +15,6 @@ use std::{fmt, io};
 use bytes::Bytes;
 
 use crate::wad::parse_name;
-use crate::wad::NameExt;
 use crate::wad::{self, Lump, Lumps};
 
 /// A single IWAD or PWAD.
@@ -46,6 +45,7 @@ pub enum WadKind {
     /// An IWAD or "internal wad" such as `doom.wad` that contains all of the data necessary to
     /// play.
     Iwad,
+
     /// A PWAD or "patch wad" containing extra levels, textures, or other assets that are overlaid
     /// on top of other wads.
     Pwad,
@@ -92,13 +92,13 @@ impl WadFile {
     }
 
     fn read_bytes(mut file: impl Read + Seek) -> io::Result<Bytes> {
+        let size = file.seek(SeekFrom::End(0))?;
         // If the file is really large it may not fit into memory. Individual allocations can never
         // exceed `isize::MAX` bytes, which is just 2GB on a 32-bit system.
         //
         // This won't catch all panics. Ideally we could check if `Vec::with_capacity` fails, but in
         // stable Rust there's no way to do that. Nightly offers `Vec::try_reserve`, so hope is on
         // the horizon.
-        let size = file.seek(SeekFrom::End(0))?;
         if isize::try_from(size).is_err() {
             return Err(io::Error::new(io::ErrorKind::OutOfMemory, "file too large"));
         }
@@ -188,7 +188,10 @@ impl WadFile {
             let name: [u8; 8] = entry[8..16].try_into().unwrap();
             let name = parse_name(&name);
 
-            if !name.is_legal_name() {
+            // Verify that this is a legal name.
+            let has_illegal_char = name
+                .contains(|ch| !matches!(ch, 'A'..='Z' | '0'..='9' | '[' | ']' | '-' | '_' | '\\'));
+            if name.is_empty() || has_illegal_char {
                 return Err(format!("bad lump name {:?}", name));
             }
 
@@ -376,7 +379,7 @@ impl WadFile {
     /// > error doesn't adversely affect play in any way, but it does take up an unnecessary 800k on
     /// > the hard drive.
     ///
-    /// For these lumps the last index returned.
+    /// When this happens the last index returned.
     ///
     /// [Unofficial Doom Specs]: http://edge.sourceforge.net/edit_guide/doom_specs.htm
     fn try_lump_index(self: &Arc<Self>, name: &str) -> wad::Result<Option<usize>> {

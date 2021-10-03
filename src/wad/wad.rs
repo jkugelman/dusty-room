@@ -3,7 +3,6 @@ use std::{path::Path, sync::Arc};
 use crate::wad::{self, Lump, Lumps, WadFile, WadKind};
 
 /// A stack of WAD files layered on top of each other, with later files overlaying earlier ones.
-///
 /// A `Wad` usually consists of an [IWAD] overlaid with zero or more [PWADs], an ordering which is
 /// enforced by the [`load`] and [`patch`] constructors. There are a set of unchecked constructors
 /// if you want to bypass this constraint.
@@ -90,11 +89,10 @@ impl Wad {
         Ok(clone)
     }
 
-    /// Returns an iterator over all the files in this `Wad`.
-    ///
-    /// The files are in the order they were added: first the initial [`WadFile`], then each of the
-    /// patches in turn. You can [reverse] the iterator if you want to see the files in the order
-    /// lump lookups occur, from last to first.
+    /// Returns an iterator over all the files in this `Wad`. The files are in the order they were
+    /// added: first the initial [`WadFile`], then each of the patches in turn. You can [reverse]
+    /// the iterator if you want to see the files in the order lump lookups occur, from last to
+    /// first.
     ///
     /// One should not normally need to call this function. It is mainly useful for debugging, or
     /// just to get a peek under the hood.
@@ -106,9 +104,7 @@ impl Wad {
         initial.chain(patches)
     }
 
-    /// Retrieves a unique lump by name.
-    ///
-    /// Lumps in later files override lumps from earlier ones.
+    /// Retrieves a unique lump by name. Lumps in later files override lumps from earlier ones.
     ///
     /// # Errors
     ///
@@ -117,9 +113,7 @@ impl Wad {
         self.lookup(|patch| patch.try_lump(name), |initial| initial.lump(name))
     }
 
-    /// Retrieves a unique lump by name.
-    ///
-    /// Lumps in later files override lumps from earlier ones.
+    /// Retrieves a unique lump by name. Lumps in later files override lumps from earlier ones.
     ///
     /// Returns `Ok(None)` if the lump is missing.
     pub fn try_lump(&self, name: &str) -> wad::Result<Option<Lump>> {
@@ -127,9 +121,7 @@ impl Wad {
     }
 
     /// Retrieves a block of `size > 0` lumps following a unique named marker. The marker lump is
-    /// included in the result.
-    ///
-    /// Blocks in later files override entire blocks from earlier files.
+    /// included in the result. Blocks in later files override entire blocks from earlier files.
     ///
     /// # Errors
     ///
@@ -146,9 +138,7 @@ impl Wad {
     }
 
     /// Retrieves a block of `size > 0` lumps following a unique named marker. The marker lump is
-    /// included in the result.
-    ///
-    /// Blocks in later files override entire blocks from earlier files.
+    /// included in the result. Blocks in later files override entire blocks from earlier files.
     ///
     /// Returns `Ok(None)` if the block is missing.
     ///
@@ -160,9 +150,7 @@ impl Wad {
     }
 
     /// Retrieves a block of lumps between start and end markers. The marker lumps are included in
-    /// the result.
-    ///
-    /// Blocks in later wads override entire blocks from earlier files.
+    /// the result. Blocks in later wads override entire blocks from earlier files.
     ///
     /// # Errors
     ///
@@ -175,9 +163,7 @@ impl Wad {
     }
 
     /// Retrieves a block of lumps between start and end markers. The marker lumps are included in
-    /// the result.
-    ///
-    /// Blocks in later wads override entire blocks from earlier files.
+    /// the result. Blocks in later wads override entire blocks from earlier files.
     ///
     /// Returns `Ok(None)` if the block is missing.
     pub fn try_lumps_between(&self, start: &str, end: &str) -> wad::Result<Option<Lumps>> {

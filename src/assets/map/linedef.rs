@@ -2,7 +2,10 @@ use bytes::Buf;
 
 use crate::wad::{self, Lumps};
 
-/// A list of [`Linedef`]s indexed by number. Each map has unique linedefs.
+/// A list of [linedefs] for a particular [map], indexed by number.
+///
+/// [linedefs]: Linedef
+/// [map]: crate::assets::Map
 #[derive(Debug)]
 pub struct Linedefs(Vec<Linedef>);
 
@@ -56,26 +59,35 @@ fn optional(sidedef: u16) -> Option<u16> {
 /// [sector]: crate::assets::Sector
 #[derive(Clone, Debug)]
 pub struct Linedef {
-    /// Number of the starting vertex.
+    /// Starting [vertex] number.
+    ///
+    /// [vertex]: crate::assets::Vertex
     pub start_vertex: u16,
 
-    /// Number of the ending vertex.
+    /// Ending [vertex] number.
+    ///
+    /// [vertex]: crate::assets::Vertex
     pub end_vertex: u16,
 
     pub flags: u16,
 
     pub types: u16,
 
-    /// A tag number which ties this line's trigger effect to all [sectors] with a matching tag number.
+    /// A tag number which ties this line's trigger effect to all [sectors] with a matching tag
+    /// number.
     ///
     /// [sectors]: crate::assets::Sector
     pub tag: u16,
 
-    /// Number of the right sidedef, where "right" is based on the direction of the linedef from the
+    /// Right [sidedef] number, where "right" is based on the direction of the linedef from the
     /// start vertex to the end vertex. All lines have a right side.
+    ///
+    /// [sidedef]: crate::assets::Sidedef
     pub right_sidedef: u16,
 
-    /// If this is a two-sided line, number of the left sidedef, where "left" is based on the
-    /// direction of the linedef from the start vertex to the end vertex.
+    /// Left [sidedef] number if this is a two-sided line, where "left" is based on the direction of
+    /// the linedef from the start vertex to the end vertex.
+    ///
+    /// [sidedef]: crate::assets::Sidedef
     pub left_sidedef: Option<u16>,
 }

@@ -60,11 +60,9 @@ impl TextureBank {
     }
 }
 
-/// A wall texture drawn on the upper, lower, and middle areas of [sidedefs].
-///
-/// Each wall texture is composed of one or more [patches] drawn at different offsets. Patches can
-/// be repeated, tiled, and overlapped. Textures can also have transparent areas where no patches
-/// are drawn.
+/// A wall texture drawn on the upper, lower, and middle areas of [sidedefs]. Each wall texture is
+/// composed of one or more [patches] drawn at different offsets. Patches can be repeated, tiled,
+/// and overlapped. Textures can also have transparent areas where no patches are drawn.
 ///
 /// [sidedefs]: crate::assets::Sidedef
 /// [patches]: crate::assets::Patch

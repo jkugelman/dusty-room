@@ -9,13 +9,6 @@ use crate::wad::{self, Cursor, WadFile};
 
 /// A block of one or more [`Lump`]s from a [`Wad`] or [`WadFile`].
 ///
-/// Usually the first lump gives the name of the block.
-///
-/// Lumps are cheap to create as they simply borrow a slice of data from their WAD file. Cloning
-/// should be treated as an expensive operation, though. The plan is to eventually make lumps
-/// mutable by making these references [copy-on-write][`Cow`], which would make cloning modified
-/// lumps expensive.
-///
 /// [`Wad`]: crate::wad::Wad
 #[derive(Clone, Debug)]
 pub struct Lumps(Vec<Lump>);
@@ -104,11 +97,6 @@ impl<'a> IntoIterator for &'a mut Lumps {
 }
 
 /// A lump of data from a [`Wad`] or [`WadFile`].
-///
-/// Lumps are cheap to create as they simply borrow a slice of data from their WAD file. Cloning
-/// should be treated as an expensive operation, though. The plan is to eventually make lumps
-/// mutable by making the data slice [copy-on-write][`Cow`], which would make cloning modified lumps
-/// expensive.
 ///
 /// [`Wad`]: crate::wad::Wad
 #[derive(Clone)]

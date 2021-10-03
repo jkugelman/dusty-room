@@ -2,7 +2,10 @@ use bytes::Buf;
 
 use crate::wad::{self, Lumps};
 
-/// A list of [`Sidedef`]s indexed by number. Each map has unique sidedefs.
+/// A list of [sidedefs] for a particular [map], indexed by number.
+///
+/// [sidedefs]: Sidedef
+/// [map]: crate::assets::Map
 #[derive(Debug)]
 pub struct Sidedefs(Vec<Sidedef>);
 
@@ -46,33 +49,43 @@ fn optional(name: String) -> Option<String> {
     }
 }
 
-/// A `Sidedef` is a definition of what wall [textures] to draw along a [linedef]. A group of
-/// sidedefs outlines the space of a [sector].
+/// A description of what wall [textures] to draw along a [linedef]. A group of sidedefs outlines
+/// the space of a [sector].
 ///
 /// [textures]: crate::assets::Texture
 /// [linedef]: crate::assets::Linedef
 /// [sector]: crate::assets::Sector
 #[derive(Clone, Debug)]
 pub struct Sidedef {
-    /// X offset to start at when drawing the wall texture. A positive offset moves the texture left
-    /// so the left side gets cut off. A negative offset moves it right.
+    /// X offset to start at when drawing the wall textures. A positive offset moves them left
+    /// so the left sides get cut off. A negative offset moves them right.
     pub x_offset: i16,
 
-    /// Y offset to start at when drawing the wall texture. A positive offset moves the texture up
-    /// so the top edge gets cut off. A negative offset moves it down.
+    /// Y offset to start at when drawing the wall textures. A positive offset moves them up
+    /// so the top edges get cut off. A negative offset moves them down.
     pub y_offset: i16,
 
-    /// Optional upper texture name, if the adjacent sector's ceiling is lower.
+    /// Optional upper [texture] name, if the adjacent [sector]'s ceiling is lower.
+    ///
+    /// [texture]: crate::assets::Texture
+    /// [sector]: crate::assets::Sector
     pub upper_texture: Option<String>,
 
-    /// Optional lower texture name, if the adjacent sector's floor is higher.
+    /// Optional lower [texture] name, if the adjacent [sector]'s floor is higher.
+    ///
+    /// [texture]: crate::assets::Texture
+    /// [sector]: crate::assets::Sector
     pub lower_texture: Option<String>,
 
-    /// Optional middle texture name. One-sided linedefs should always have a middle texture.
+    /// Optional middle [texture] name. One-sided linedefs should always have a middle texture.
     /// Two-sided linedefs are usually transparent, though they sometimes have partially see-through
     /// textures such as for fences or windows.
+    ///
+    /// [texture]: crate::assets::Texture
     pub middle_texture: Option<String>,
 
-    /// Index of the sector this sidedef faces or helps to surround.
+    /// [Sector] number this sidedef faces or helps to surround.
+    ///
+    /// [sector]: crate::assets::Sector
     pub sector: u16,
 }
