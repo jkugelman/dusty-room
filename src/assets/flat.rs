@@ -60,7 +60,8 @@ impl Flat {
 
         let mut cursor = lump.cursor();
         let name = lump.name().to_owned();
-        let pixels = cursor.need(width * height)?.split_to(width * height);
+        cursor.need(width * height)?;
+        let pixels = cursor.split_to(width * height);
         cursor.done()?;
 
         Ok(Self { name, pixels })

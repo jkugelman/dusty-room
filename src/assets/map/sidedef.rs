@@ -16,9 +16,9 @@ impl Sidedefs {
     /// Loads a map's sidedefs from its `SIDEDEFS` lump.
     pub fn load(lumps: &Lumps, sectors: &Sectors) -> wad::Result<Self> {
         let lump = lumps[3].expect_name("SIDEDEFS")?;
-        let mut cursor = lump.cursor();
 
         let mut sidedefs = Vec::with_capacity(lump.size() / 30);
+        let mut cursor = lump.cursor();
 
         while cursor.has_remaining() {
             cursor.need(30)?;

@@ -15,9 +15,9 @@ impl Sectors {
     /// Loads a map's sectors from its `SECTORS` lump.
     pub fn load(lumps: &Lumps) -> wad::Result<Self> {
         let lump = lumps[8].expect_name("SECTORS")?;
-        let mut cursor = lump.cursor();
 
         let mut sectors = Vec::with_capacity(lump.size() / 26);
+        let mut cursor = lump.cursor();
 
         while cursor.has_remaining() {
             cursor.need(26)?;

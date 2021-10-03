@@ -32,14 +32,17 @@ impl TextureBank {
     fn load_from(lump: &Lump, textures: &mut BTreeMap<String, Texture>) -> wad::Result<()> {
         let mut cursor = lump.cursor();
 
-        let count = cursor.need(4)?.get_u32_le();
+        cursor.need(4)?;
+        let count = cursor.get_u32_le();
 
         // Read texture offsets. The WAD is untrusted so clamp how much memory is pre-allocated.
         // Don't worry about overflow converting from `u32` to `usize`. The wrong capacity won't
         // affect correctness.
         let mut offsets = Vec::with_capacity(count.clamp(0, 1024) as usize);
+        cursor.need((count * 4).try_into().unwrap())?;
+
         for _ in 0..count {
-            offsets.push(cursor.need(4)?.get_u32_le());
+            offsets.push(cursor.get_u32_le());
         }
 
         cursor.clear();
@@ -86,7 +89,7 @@ pub struct Texture {
 impl Texture {
     fn load(lump: &Lump, offset: usize) -> wad::Result<Self> {
         let mut cursor = lump.cursor();
-        cursor.need(offset)?.advance(offset);
+        cursor.skip(offset)?;
 
         cursor.need(22)?;
         let name = cursor.get_name();

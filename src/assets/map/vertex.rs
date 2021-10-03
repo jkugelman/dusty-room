@@ -19,9 +19,9 @@ impl Vertexes {
     /// Loads a map's vertexes from its `VERTEXES` lump.
     pub fn load(lumps: &Lumps) -> wad::Result<Self> {
         let lump = lumps[4].expect_name("VERTEXES")?;
-        let mut cursor = lump.cursor();
 
         let mut vertexes = Vec::with_capacity(lump.size() / 4);
+        let mut cursor = lump.cursor();
 
         while cursor.has_remaining() {
             cursor.need(4)?;

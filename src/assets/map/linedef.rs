@@ -14,9 +14,9 @@ impl Linedefs {
     /// Loads a map's linedefs from its `LINEDEFS` lump.
     pub fn load(lumps: &Lumps, vertexes: &Vertexes, sidedefs: &Sidedefs) -> wad::Result<Self> {
         let lump = lumps[2].expect_name("LINEDEFS")?;
-        let mut cursor = lump.cursor();
 
         let mut linedefs = Vec::with_capacity(lump.size() / 14);
+        let mut cursor = lump.cursor();
 
         while cursor.has_remaining() {
             cursor.need(14)?;

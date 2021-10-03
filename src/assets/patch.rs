@@ -24,7 +24,9 @@ impl PatchBank {
         let lump = wad.lump("PNAMES")?;
         let mut cursor = lump.cursor();
 
-        let count = cursor.need(4)?.get_u32_le();
+        cursor.need(4)?;
+        let count = cursor.get_u32_le();
+
         let mut patches = Vec::with_capacity(count.clamp(0, 1024) as usize);
         cursor.need((count * 8).try_into().unwrap())?;
 
@@ -125,6 +127,7 @@ impl Patch {
         // Read column offsets. The WAD is untrusted so clamp how much memory is pre-allocated.
         let mut column_offsets = Vec::with_capacity(width.clamp(0, 512).into());
         cursor.need((4 * width).into())?;
+
         for _ in 0..width {
             column_offsets.push(cursor.get_u32_le());
         }
@@ -150,13 +153,14 @@ impl Patch {
 
     fn read_column(lump: &Lump, offset: usize) -> wad::Result<Column> {
         let mut cursor = lump.cursor();
-        cursor.need(offset)?.advance(offset);
+        cursor.skip(offset)?;
 
         let mut posts = Vec::new();
         let mut last_y_offset = None;
 
         loop {
-            let y_offset = match (cursor.need(1)?.get_u8() as u16, last_y_offset) {
+            cursor.need(1)?;
+            let y_offset = match (cursor.get_u8() as u16, last_y_offset) {
                 // The end of the column is marked by an offset of 255.
                 (255, _) => {
                     break;
@@ -176,10 +180,13 @@ impl Patch {
                 (y_offset, _) => y_offset,
             };
 
-            let length = cursor.need(1)?.get_u8() as usize;
-            let _unused = cursor.need(1)?.get_u8();
-            let pixels = cursor.need(length)?.split_to(length);
-            let _unused = cursor.need(1)?.get_u8();
+            cursor.need(1)?;
+            let length = cursor.get_u8() as usize;
+
+            cursor.need(usize::from(length) + 2)?;
+            let _unused = cursor.get_u8();
+            let pixels = cursor.split_to(length);
+            let _unused = cursor.get_u8();
 
             posts.push(Post { y_offset, pixels });
             last_y_offset = Some(y_offset);

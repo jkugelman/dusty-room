@@ -71,7 +71,8 @@ const PALETTE_BYTES: usize = 3 * PALETTE_COLORS;
 
 impl Palette {
     fn load(cursor: &mut Cursor) -> wad::Result<Self> {
-        let raw = cursor.need(PALETTE_BYTES)?.split_to(PALETTE_BYTES);
+        cursor.need(PALETTE_BYTES)?;
+        let raw = cursor.split_to(PALETTE_BYTES);
         Ok(Self { raw })
     }
 }

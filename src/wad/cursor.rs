@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::convert::TryInto;
 use std::ops::{Deref, DerefMut};
 
-use bytes::Bytes;
+use bytes::{Buf, Bytes};
 
 use crate::wad::{self, parse_name, Lump};
 
@@ -26,14 +26,19 @@ impl<'lump> Cursor<'lump> {
 
 impl Cursor<'_> {
     /// Checks that there are at least `size` bytes remaining.
-    ///
-    /// Returns `&self` for chainability.
-    pub fn need(&mut self, size: usize) -> wad::Result<&mut Self> {
+    pub fn need(&self, size: usize) -> wad::Result<()> {
         if self.len() >= size {
-            Ok(self)
+            Ok(())
         } else {
             Err(self.lump.error("not enough data"))
         }
+    }
+
+    /// Checks that there are at least `count` bytes remaining, then calls `self.advance(count)`.
+    pub fn skip(&mut self, count: usize) -> wad::Result<()> {
+        self.need(count)?;
+        self.advance(count);
+        Ok(())
     }
 
     /// Checks if there is unread data, then drops the cursor. This function **must** be called when
