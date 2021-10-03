@@ -6,7 +6,9 @@ use bytes::Bytes;
 
 use crate::wad::{self, Lump, Wad};
 
-/// A bank of floor and ceiling textures, indexed by name.
+/// A bank of [sector] floor and ceiling textures, indexed by name.
+///
+/// [sector]: crate::assets::Sector
 #[derive(Clone)]
 pub struct FlatBank(BTreeMap<String, Arc<Flat>>);
 
@@ -48,7 +50,11 @@ impl fmt::Debug for FlatBank {
 /// A floor or ceiling texture.
 #[derive(Clone)]
 pub struct Flat {
+    /// Name of the flat. Used by [sectors].
+    ///
+    /// [sectors]: crate::assets::Sector
     pub name: String,
+
     pixels: Bytes,
 }
 
