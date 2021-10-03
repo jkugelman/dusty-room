@@ -12,6 +12,7 @@ use std::fmt;
 
 use crate::wad::{self, Lump, Wad};
 
+#[derive(Debug)]
 pub struct Map {
     name: String,
     things: (),
@@ -51,28 +52,6 @@ impl Map {
     }
 
     fn read_things(_lump: &Lump) {}
-}
-
-impl fmt::Debug for Map {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let Self {
-            name,
-            things,
-            vertexes,
-            sidedefs,
-            linedefs,
-            sectors,
-        } = self;
-
-        fmt.debug_struct("Map")
-            .field("name", &name)
-            .field("things", &things)
-            .field("vertexes", &vertexes)
-            .field("sidedefs", &sidedefs)
-            .field("linedefs", &linedefs)
-            .field("sectors", &sectors)
-            .finish()
-    }
 }
 
 impl fmt::Display for Map {

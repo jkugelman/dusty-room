@@ -7,6 +7,7 @@ use crate::wad::{self, Lumps};
 pub struct Sidedefs(Vec<Sidedef>);
 
 impl Sidedefs {
+    /// Loads a map's sidedefs from its `SIDEDEFS` lump.
     pub fn load(lumps: &Lumps) -> wad::Result<Self> {
         let lump = lumps[3].expect_name("SIDEDEFS")?;
         let mut cursor = lump.cursor();
@@ -53,10 +54,25 @@ fn optional(name: String) -> Option<String> {
 /// [sector]: crate::assets::Sector
 #[derive(Clone, Debug)]
 pub struct Sidedef {
+    /// X offset to start at when drawing the wall texture. A positive offset moves the texture left
+    /// so the left side gets cut off. A negative offset moves it right.
     pub x_offset: i16,
+
+    /// Y offset to start at when drawing the wall texture. A positive offset moves the texture up
+    /// so the top edge gets cut off. A negative offset moves it down.
     pub y_offset: i16,
+
+    /// Optional upper texture name, if the adjacent sector's ceiling is lower.
     pub upper_texture: Option<String>,
+
+    /// Optional lower texture name, if the adjacent sector's floor is higher.
     pub lower_texture: Option<String>,
+
+    /// Optional middle texture name. One-sided linedefs should always have a middle texture.
+    /// Two-sided linedefs are usually transparent, though they sometimes have partially see-through
+    /// textures such as for fences or windows.
     pub middle_texture: Option<String>,
+
+    /// Index of the sector this sidedef faces or helps to surround.
     pub sector: u16,
 }

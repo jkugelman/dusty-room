@@ -12,6 +12,7 @@ use crate::wad::{self, Lumps};
 pub struct Vertexes(Vec<Vertex>);
 
 impl Vertexes {
+    /// Loads a map's vertexes from its `VERTEXES` lump.
     pub fn load(lumps: &Lumps) -> wad::Result<Self> {
         let lump = lumps[4].expect_name("VERTEXES")?;
         let mut cursor = lump.cursor();
@@ -37,6 +38,9 @@ impl Vertexes {
 /// [segs]: crate::assets::Seg
 #[derive(Clone, Debug)]
 pub struct Vertex {
+    /// X coordinate.
     pub x: i16,
+
+    /// Y coordinate.
     pub y: i16,
 }

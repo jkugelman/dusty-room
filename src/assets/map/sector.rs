@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use bytes::Buf;
 
 use crate::wad::{self, Lumps};
@@ -7,6 +9,7 @@ use crate::wad::{self, Lumps};
 pub struct Sectors(Vec<Sector>);
 
 impl Sectors {
+    /// Loads a map's sectors from its `SECTORS` lump.
     pub fn load(lumps: &Lumps) -> wad::Result<Self> {
         let lump = lumps[8].expect_name("SECTORS")?;
         let mut cursor = lump.cursor();
@@ -19,8 +22,8 @@ impl Sectors {
             let ceiling_height = cursor.get_i16_le();
             let floor_flat = cursor.get_name();
             let ceiling_flat = cursor.get_name();
-            let light_level = cursor.get_u16_le();
-            let kind = cursor.get_u16_le();
+            let light_level = cursor.get_u16_le().try_into().unwrap_or(u8::MAX);
+            let special_type = cursor.get_u16_le();
             let tag_number = cursor.get_u16_le();
 
             sectors.push(Sector {
@@ -29,7 +32,7 @@ impl Sectors {
                 floor_flat,
                 ceiling_flat,
                 light_level,
-                kind,
+                special_type,
                 tag_number,
             })
         }
@@ -49,11 +52,28 @@ impl Sectors {
 /// [linedefs]: crate::assets::Linedef
 #[derive(Debug)]
 pub struct Sector {
+    /// Floor is at this height for the sector.
     pub floor_height: i16,
+
+    /// Ceiling is at this height for the sector.
     pub ceiling_height: i16,
+
+    /// Name of the flat used for the floor texture.
     pub floor_flat: String,
+
+    /// Name of the flat used for the ceiling texture.
     pub ceiling_flat: String,
-    pub light_level: u16,
-    pub kind: u16,
+
+    /// Light level of this sector, from 0 (total dark) to 255 (maximum brightness). There are
+    /// actually only 32 brightnesses possible: 0-7 are the same, ..., 248-255 are the same.
+    pub light_level: u8,
+
+    pub special_type: u16,
+
+    /// A tag number corresponding to [linedefs] with the same tag number. When those linedefs are
+    /// activated something will usually happen to this sector: its floor will rise, the lights will
+    /// go out, etc.
+    ///
+    /// [linedefs]: crate::assets::Linedef
     pub tag_number: u16,
 }
