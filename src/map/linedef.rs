@@ -1,12 +1,14 @@
+use std::ops::Index;
+
 use bytes::Buf;
 
-use crate::assets::{Map, Sidedef, Sidedefs, Vertex, Vertexes};
+use crate::map::{Map, Sidedef, Sidedefs, Vertex, Vertexes};
 use crate::wad::{self, Lumps};
 
 /// A list of [linedefs] for a particular [map], indexed by number.
 ///
 /// [linedefs]: Linedef
-/// [map]: crate::assets::Map
+/// [map]: crate::map::Map
 #[derive(Debug)]
 pub struct Linedefs(Vec<Linedef>);
 
@@ -19,50 +21,46 @@ impl Linedefs {
         let mut cursor = lump.cursor();
 
         while cursor.has_remaining() {
+            // Helper function to verify a vertex number.
+            let vertex_number = |vertex: u16, which: &str| -> wad::Result<u16> {
+                vertexes.get(vertex).ok_or_else(|| {
+                    lump.error(format!(
+                        "linedef #{} has invalid {} vertex #{}",
+                        linedefs.len(),
+                        which,
+                        vertex
+                    ))
+                })?;
+                Ok(vertex)
+            };
+
+            // Helper function to verify a sidedef number. `-1` indicates no sidedef.
+            let sidedef_number = |sidedef: u16, which: &str| -> wad::Result<Option<u16>> {
+                if sidedef == u16::MAX {
+                    Ok(None)
+                } else {
+                    sidedefs.get(sidedef).ok_or_else(|| {
+                        lump.error(format!(
+                            "linedef #{} has invalid {} sidedef #{}",
+                            linedefs.len(),
+                            which,
+                            sidedef
+                        ))
+                    })?;
+                    Ok(Some(sidedef))
+                }
+            };
+
             cursor.need(14)?;
-            let start_vertex = cursor.get_u16_le();
-            let end_vertex = cursor.get_u16_le();
+            let start_vertex = vertex_number(cursor.get_u16_le(), "start")?;
+            let end_vertex = vertex_number(cursor.get_u16_le(), "end")?;
             let flags = cursor.get_u16_le();
             let types = cursor.get_u16_le();
             let tag = cursor.get_u16_le();
-            let right_sidedef = optional(cursor.get_u16_le()).ok_or_else(|| {
+            let right_sidedef = sidedef_number(cursor.get_u16_le(), "right")?.ok_or_else(|| {
                 lump.error(format!("linedef #{} missing right sidedef", linedefs.len()))
             })?;
-            let left_sidedef = optional(cursor.get_u16_le());
-
-            vertexes.get(usize::from(start_vertex)).ok_or_else(|| {
-                lump.error(format!(
-                    "linedef #{} has invalid start vertex #{}",
-                    linedefs.len(),
-                    start_vertex
-                ))
-            })?;
-
-            vertexes.get(usize::from(end_vertex)).ok_or_else(|| {
-                lump.error(format!(
-                    "linedef #{} has invalid end vertex #{}",
-                    linedefs.len(),
-                    end_vertex
-                ))
-            })?;
-
-            sidedefs.get(usize::from(right_sidedef)).ok_or_else(|| {
-                lump.error(format!(
-                    "linedef #{} has invalid right sidedef #{}",
-                    linedefs.len(),
-                    right_sidedef
-                ))
-            })?;
-
-            if let Some(left_sidedef) = left_sidedef {
-                sidedefs.get(usize::from(left_sidedef)).ok_or_else(|| {
-                    lump.error(format!(
-                        "linedef #{} has invalid left sidedef #{}",
-                        linedefs.len(),
-                        left_sidedef
-                    ))
-                })?;
-            }
+            let left_sidedef = sidedef_number(cursor.get_u16_le(), "left")?;
 
             linedefs.push(Linedef {
                 start_vertex,
@@ -79,31 +77,38 @@ impl Linedefs {
 
         Ok(Self(linedefs))
     }
+
+    /// Looks up a linedef number.
+    pub fn get(&self, number: u16) -> Option<&Linedef> {
+        self.0.get(usize::from(number))
+    }
 }
 
-fn optional(sidedef: u16) -> Option<u16> {
-    match sidedef {
-        u16::MAX => None,
-        _ => Some(sidedef),
+impl Index<u16> for Linedefs {
+    type Output = Linedef;
+
+    /// Looks up a linedef number.
+    fn index(&self, number: u16) -> &Self::Output {
+        &self.0[usize::from(number)]
     }
 }
 
 /// A `Linedef` represents a one- or two-sided line between two [vertexes]. Each linedef has
 /// optional left and right [sidedefs] that link to the adjoining [sector] or sectors.
 ///
-/// [vertexes]: crate::assets::Vertex
-/// [sidedefs]: crate::assets::Sidedef
-/// [sector]: crate::assets::Sector
+/// [vertexes]: crate::map::Vertex
+/// [sidedefs]: crate::map::Sidedef
+/// [sector]: crate::map::Sector
 #[derive(Clone, Debug)]
 pub struct Linedef {
     /// Starting [vertex] number.
     ///
-    /// [vertex]: crate::assets::Vertex
+    /// [vertex]: crate::map::Vertex
     pub start_vertex: u16,
 
     /// Ending [vertex] number.
     ///
-    /// [vertex]: crate::assets::Vertex
+    /// [vertex]: crate::map::Vertex
     pub end_vertex: u16,
 
     pub flags: u16,
@@ -113,40 +118,40 @@ pub struct Linedef {
     /// A tag number which ties this line's trigger effect to all [sectors] with a matching tag
     /// number.
     ///
-    /// [sectors]: crate::assets::Sector
+    /// [sectors]: crate::map::Sector
     pub tag: u16,
 
     /// Right [sidedef] number, where "right" is based on the direction of the linedef from the
     /// start vertex to the end vertex. All lines have a right side.
     ///
-    /// [sidedef]: crate::assets::Sidedef
+    /// [sidedef]: crate::map::Sidedef
     pub right_sidedef: u16,
 
     /// Left [sidedef] number if this is a two-sided line, where "left" is based on the direction of
     /// the linedef from the start vertex to the end vertex.
     ///
-    /// [sidedef]: crate::assets::Sidedef
+    /// [sidedef]: crate::map::Sidedef
     pub left_sidedef: Option<u16>,
 }
 
 impl Linedef {
     /// Looks up the linedef's start vertex.
     pub fn start_vertex<'map>(&self, map: &'map Map) -> &'map Vertex {
-        &map.vertexes[usize::from(self.start_vertex)]
+        &map.vertexes[self.start_vertex]
     }
 
     /// Looks up the linedef's end vertex.
     pub fn end_vertex<'map>(&self, map: &'map Map) -> &'map Vertex {
-        &map.vertexes[usize::from(self.end_vertex)]
+        &map.vertexes[self.end_vertex]
     }
 
     /// Looks up the linedef's right sidedef.
     pub fn right_sidedef<'map>(&self, map: &'map Map) -> &'map Sidedef {
-        &map.sidedefs[usize::from(self.right_sidedef)]
+        &map.sidedefs[self.right_sidedef]
     }
 
     /// Looks up the linedef's left sidedef.
     pub fn left_sidedef<'map>(&self, map: &'map Map) -> Option<&'map Sidedef> {
-        Some(&map.sidedefs[usize::from(self.left_sidedef?)])
+        Some(&map.sidedefs[self.left_sidedef?])
     }
 }

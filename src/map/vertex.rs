@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::ops::{Deref, Index};
 
 use bytes::Buf;
 
@@ -10,7 +10,7 @@ use crate::wad::{self, Lumps};
 /// either "vertices" or "vertexes". In this codebase we use id Software's spelling.
 ///
 /// [vertexes]: Vertex
-/// [map]: crate::assets::Map
+/// [map]: crate::map::Map
 /// [Merriam-Webster]: https://www.merriam-webster.com/dictionary/vertex
 #[derive(Debug)]
 pub struct Vertexes(Vec<Vertex>);
@@ -34,6 +34,20 @@ impl Vertexes {
 
         Ok(Self(vertexes))
     }
+
+    /// Looks up a vertex number.
+    pub fn get(&self, number: u16) -> Option<&Vertex> {
+        self.0.get(usize::from(number))
+    }
+}
+
+impl Index<u16> for Vertexes {
+    type Output = Vertex;
+
+    /// Looks up a vertex number.
+    fn index(&self, number: u16) -> &Self::Output {
+        &self.0[usize::from(number)]
+    }
 }
 
 impl Deref for Vertexes {
@@ -46,7 +60,7 @@ impl Deref for Vertexes {
 
 /// Vertexes are the start and end points of [linedefs] and [segs].
 ///
-/// [linedefs]: crate::assets::Linedef
+/// [linedefs]: crate::map::Linedef
 /// [segs]: crate::assets::Seg
 #[derive(Clone, Debug)]
 pub struct Vertex {

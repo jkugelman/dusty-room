@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::convert::TryInto;
+use std::ops::Index;
 
 use bytes::Buf;
 
@@ -57,9 +58,18 @@ impl TextureBank {
         Ok(())
     }
 
-    /// Retrieves a texture by name.
+    /// Looks up a texture name. Case insensitive.
     pub fn get(&self, name: &str) -> Option<&Texture> {
-        self.0.get(name)
+        self.0.get(&name.to_ascii_uppercase())
+    }
+}
+
+impl Index<&'_ str> for TextureBank {
+    type Output = Texture;
+
+    /// Looks up a texture name. Case insensitive.
+    fn index(&self, name: &str) -> &Self::Output {
+        self.get(name).expect("texture not found")
     }
 }
 
@@ -67,13 +77,13 @@ impl TextureBank {
 /// composed of one or more [patches] drawn at different offsets. Patches can be repeated, tiled,
 /// and overlapped. Textures can also have transparent areas where no patches are drawn.
 ///
-/// [sidedefs]: crate::assets::Sidedef
+/// [sidedefs]: crate::map::Sidedef
 /// [patches]: crate::assets::Patch
 #[derive(Clone, Debug)]
 pub struct Texture {
     /// Name of the texture. Used by [sidedefs].
     ///
-    /// [sidedefs]: crate::assets::Sidedef
+    /// [sidedefs]: crate::map::Sidedef
     pub name: String,
 
     /// Total width in pixels.

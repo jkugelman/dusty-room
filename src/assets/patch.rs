@@ -52,14 +52,14 @@ impl PatchBank {
         self.len() == 0
     }
 
-    /// Returns the patch at the specified index.
+    /// Looks up a patch number.
     ///
     /// # Errors
     ///
     /// Returns `Err(None)` if the index is out of range.
     ///
-    /// Returns `Err(Some(name))` with the missing patch name if `PNAMES` lists the name of a
-    /// missing patch, as happens with the shareware version of `doom.wad`.
+    /// If the index is valid but the patch is missing, returns `Err(Some(name))` with the name of
+    /// the missing patch. This happens with the shareware version of `doom.wad`.
     pub fn get(&self, index: u16) -> Result<&Patch, Option<&str>> {
         let (name, patch): &(String, Option<Patch>) = self.0.get(usize::from(index)).ok_or(None)?;
         patch.as_ref().ok_or(Some(name))
@@ -69,6 +69,7 @@ impl PatchBank {
 impl Index<u16> for PatchBank {
     type Output = Patch;
 
+    /// Looks up a patch number.
     fn index(&self, index: u16) -> &Self::Output {
         self.0[usize::from(index)].1.as_ref().unwrap()
     }

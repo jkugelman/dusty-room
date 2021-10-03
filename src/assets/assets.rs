@@ -3,24 +3,27 @@ use crate::assets::PaletteBank;
 use crate::assets::TextureBank;
 use crate::wad::{self, Wad};
 
-/// Holds all of the assets loaded from a [`Wad`]: maps, sprites, textures, sounds, etc.
+/// Holds all of the fixed assets loaded from a [`Wad`]: graphics, sounds, music, text strings, etc.
+/// Map data is stored [elsewhere] since typically only one map is loaded at a time.
+///
+/// [elsewhere]: crate::map::Map
 #[derive(Debug)]
 pub struct Assets {
-    _palette_bank: PaletteBank,
-    _flat_bank: FlatBank,
-    texture_bank: TextureBank,
+    pub palette_bank: PaletteBank,
+    pub flat_bank: FlatBank,
+    pub texture_bank: TextureBank,
 }
 
 impl Assets {
     /// Loads assets from a [`Wad`].
     pub fn load(wad: &Wad) -> wad::Result<Self> {
-        let _palette_bank = PaletteBank::load(wad)?;
-        let _flat_bank = FlatBank::load(wad)?;
+        let palette_bank = PaletteBank::load(wad)?;
+        let flat_bank = FlatBank::load(wad)?;
         let texture_bank = TextureBank::load(wad)?;
 
         Ok(Assets {
-            _palette_bank,
-            _flat_bank,
+            palette_bank,
+            flat_bank,
             texture_bank,
         })
     }

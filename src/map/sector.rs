@@ -1,31 +1,47 @@
 use std::convert::TryInto;
+use std::ops::Index;
 
 use bytes::Buf;
 
+use crate::assets::Assets;
 use crate::wad::{self, Lumps};
 
 /// A list of [sectors] for a particular [map], indexed by number.
 ///
 /// [sectors]: Sector
-/// [map]: crate::assets::Map
+/// [map]: crate::map::Map
 #[derive(Debug)]
 pub struct Sectors(Vec<Sector>);
 
 impl Sectors {
     /// Loads a map's sectors from its `SECTORS` lump.
-    pub fn load(lumps: &Lumps) -> wad::Result<Self> {
+    pub fn load(lumps: &Lumps, assets: &Assets) -> wad::Result<Self> {
         let lump = lumps[8].expect_name("SECTORS")?;
 
         let mut sectors = Vec::with_capacity(lump.size() / 26);
         let mut cursor = lump.cursor();
 
         while cursor.has_remaining() {
+            // Helper function to verify a flat name.
+            let flat_name = |name: String, which: &str| -> wad::Result<String> {
+                assets.flat_bank.get(&name).ok_or_else(|| {
+                    lump.error(format!(
+                        "sector #{} has invalid {} flat {:?}",
+                        sectors.len(),
+                        which,
+                        name
+                    ))
+                })?;
+
+                Ok(name)
+            };
+
             cursor.need(26)?;
             let floor_height = cursor.get_i16_le();
             let ceiling_height = cursor.get_i16_le();
-            let floor_flat = cursor.get_name();
-            let ceiling_flat = cursor.get_name();
-            let light_level = cursor.get_u16_le().try_into().unwrap_or(u8::MAX);
+            let floor_flat = flat_name(cursor.get_name(), "floor")?;
+            let ceiling_flat = flat_name(cursor.get_name(), "ceiling")?;
+            let light_level: u8 = cursor.get_u16_le().try_into().unwrap_or(u8::MAX);
             let special_type = cursor.get_u16_le();
             let tag = cursor.get_u16_le();
 
@@ -44,6 +60,20 @@ impl Sectors {
 
         Ok(Self(sectors))
     }
+
+    /// Looks up a sector number.
+    pub fn get(&self, number: u16) -> Option<&Sector> {
+        self.0.get(usize::from(number))
+    }
+}
+
+impl Index<u16> for Sectors {
+    type Output = Sector;
+
+    /// Looks up a sector number.
+    fn index(&self, number: u16) -> &Self::Output {
+        &self.0[usize::from(number)]
+    }
 }
 
 impl std::ops::Deref for Sectors {
@@ -58,10 +88,10 @@ impl std::ops::Deref for Sectors {
 /// height are defined. Its shape its defined by its [sidedefs]. Any change in floor or ceiling
 /// height or [texture] requires a new sector (and therefore separating [linedefs] and sidedefs).
 ///
-/// [map]: crate::assets::Map
-/// [sidedefs]: crate::assets::Sidedef
+/// [map]: crate::map::Map
+/// [sidedefs]: crate::map::Sidedef
 /// [texture]: crate::assets::Flat
-/// [linedefs]: crate::assets::Linedef
+/// [linedefs]: crate::map::Linedef
 #[derive(Debug)]
 pub struct Sector {
     /// Floor height.
@@ -89,6 +119,6 @@ pub struct Sector {
     /// A tag number. When [linedefs] with the same tag number are activated something will usually
     /// happen to this sector: its floor will rise, the lights will go out, etc.
     ///
-    /// [linedefs]: crate::assets::Linedef
+    /// [linedefs]: crate::map::Linedef
     pub tag: u16,
 }

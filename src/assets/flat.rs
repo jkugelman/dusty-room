@@ -8,7 +8,7 @@ use crate::wad::{self, Lump, Wad};
 
 /// A bank of floor and ceiling textures for [sectors], indexed by name.
 ///
-/// [sectors]: crate::assets::Sector
+/// [sectors]: crate::map::Sector
 #[derive(Clone)]
 pub struct FlatBank(BTreeMap<String, Arc<Flat>>);
 
@@ -49,12 +49,12 @@ impl fmt::Debug for FlatBank {
 
 /// A floor or ceiling texture for [sectors].
 ///
-/// [sectors]: crate::assets::Sector
+/// [sectors]: crate::map::Sector
 #[derive(Clone)]
 pub struct Flat {
     /// Name of the flat. Used by [sectors].
     ///
-    /// [sectors]: crate::assets::Sector
+    /// [sectors]: crate::map::Sector
     pub name: String,
 
     pixels: Bytes,
