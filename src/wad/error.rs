@@ -12,6 +12,7 @@ use crate::wad::WadKind;
 /// [`Result`]: std::result::Result
 /// [`Wad`]: crate::wad::Wad
 /// [`WadFile`]: crate::wad::WadFile
+/// [`wad::Error`]: crate::wad::Error
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// The error type when loading and searching [`Wad`]s and [`WadFile`]s. Errors are always tied to a

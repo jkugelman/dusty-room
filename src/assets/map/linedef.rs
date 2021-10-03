@@ -2,6 +2,7 @@ use bytes::Buf;
 
 use crate::wad::{self, Lumps};
 
+/// A list of [`Linedef`]s indexed by number. Each map has unique linedefs.
 #[derive(Debug)]
 pub struct Linedefs(Vec<Linedef>);
 

@@ -2,6 +2,8 @@ use bytes::Buf;
 
 use crate::wad::{self, Lumps};
 
+/// A list of [`Vertex`]es indexed by number. Each map has unique vertexes.
+///
 /// Wannabe pedants should note that according to [Merriam-Webster] the plural of "vertex" can be
 /// either "vertices" or "vertexes". In this codebase we use id Software's spelling.
 ///
@@ -29,10 +31,10 @@ impl Vertexes {
     }
 }
 
-/// Vertexes are the start and end points of [`Linedef`]s and [`Seg`]s.
+/// Vertexes are the start and end points of [linedefs] and [segs].
 ///
-/// [`Linedef`]: crate::assets::Linedef
-/// [`Seg`]: crate::assets::Seg
+/// [linedefs]: crate::assets::Linedef
+/// [segs]: crate::assets::Seg
 #[derive(Clone, Debug)]
 pub struct Vertex {
     pub x: i16,

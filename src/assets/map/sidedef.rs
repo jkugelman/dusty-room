@@ -2,6 +2,7 @@ use bytes::Buf;
 
 use crate::wad::{self, Lumps};
 
+/// A list of [`Sidedef`]s indexed by number. Each map has unique sidedefs.
 #[derive(Debug)]
 pub struct Sidedefs(Vec<Sidedef>);
 
@@ -44,8 +45,12 @@ fn optional(name: String) -> Option<String> {
     }
 }
 
-/// A `Sidedef` is a definition of what wall [`Texture`]s to draw along a [`Linedef`], and a group
-/// of `Sidedef`s outline the space of a [`Sector`].
+/// A `Sidedef` is a definition of what wall [textures] to draw along a [linedef]. A group of
+/// sidedefs outlines the space of a [sector].
+///
+/// [textures]: crate::assets::Texture
+/// [linedef]: crate::assets::Linedef
+/// [sector]: crate::assets::Sector
 #[derive(Clone, Debug)]
 pub struct Sidedef {
     pub x_offset: i16,
