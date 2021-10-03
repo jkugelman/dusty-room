@@ -93,8 +93,8 @@ impl Index<u16> for Linedefs {
     }
 }
 
-/// A `Linedef` represents a one- or two-sided line between two [vertexes]. Each linedef has
-/// optional left and right [sidedefs] that link to the adjoining [sector] or sectors.
+/// A one- or two-sided line between two [vertexes]. Each linedef has optional left and right
+/// [sidedefs] that link to the adjoining [sector] or sectors.
 ///
 /// [vertexes]: crate::map::Vertex
 /// [sidedefs]: crate::map::Sidedef
