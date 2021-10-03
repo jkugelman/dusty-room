@@ -27,7 +27,7 @@ impl Sectors {
             let ceiling_flat = cursor.get_name();
             let light_level = cursor.get_u16_le().try_into().unwrap_or(u8::MAX);
             let special_type = cursor.get_u16_le();
-            let tag_number = cursor.get_u16_le();
+            let tag = cursor.get_u16_le();
 
             sectors.push(Sector {
                 floor_height,
@@ -36,7 +36,7 @@ impl Sectors {
                 ceiling_flat,
                 light_level,
                 special_type,
-                tag_number,
+                tag,
             })
         }
 
@@ -90,5 +90,5 @@ pub struct Sector {
     /// happen to this sector: its floor will rise, the lights will go out, etc.
     ///
     /// [linedefs]: crate::assets::Linedef
-    pub tag_number: u16,
+    pub tag: u16,
 }

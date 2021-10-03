@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use bytes::Buf;
 
-use crate::assets::Sectors;
+use crate::assets::{Map, Sector, Sectors};
 use crate::wad::{self, Lumps};
 
 /// A list of [sidedefs] for a particular [map], indexed by number.
@@ -107,4 +107,11 @@ pub struct Sidedef {
     ///
     /// [sector]: crate::assets::Sector
     pub sector: u16,
+}
+
+impl Sidedef {
+    /// Looks up the sidedef's sector.
+    pub fn sector<'map>(&self, map: &'map Map) -> &'map Sector {
+        &map.sectors[usize::from(self.sector)]
+    }
 }

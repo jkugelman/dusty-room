@@ -1,6 +1,6 @@
 use bytes::Buf;
 
-use crate::assets::{Sidedefs, Vertexes};
+use crate::assets::{Map, Sidedef, Sidedefs, Vertex, Vertexes};
 use crate::wad::{self, Lumps};
 
 /// A list of [linedefs] for a particular [map], indexed by number.
@@ -127,4 +127,26 @@ pub struct Linedef {
     ///
     /// [sidedef]: crate::assets::Sidedef
     pub left_sidedef: Option<u16>,
+}
+
+impl Linedef {
+    /// Looks up the linedef's start vertex.
+    pub fn start_vertex<'map>(&self, map: &'map Map) -> &'map Vertex {
+        &map.vertexes[usize::from(self.start_vertex)]
+    }
+
+    /// Looks up the linedef's end vertex.
+    pub fn end_vertex<'map>(&self, map: &'map Map) -> &'map Vertex {
+        &map.vertexes[usize::from(self.end_vertex)]
+    }
+
+    /// Looks up the linedef's right sidedef.
+    pub fn right_sidedef<'map>(&self, map: &'map Map) -> &'map Sidedef {
+        &map.sidedefs[usize::from(self.right_sidedef)]
+    }
+
+    /// Looks up the linedef's left sidedef.
+    pub fn left_sidedef<'map>(&self, map: &'map Map) -> Option<&'map Sidedef> {
+        Some(&map.sidedefs[usize::from(self.left_sidedef?)])
+    }
 }

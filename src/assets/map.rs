@@ -15,12 +15,23 @@ use crate::wad::{self, Lump, Wad};
 /// Contains all the level geometry, monsters, items, and other things that make up a map.
 #[derive(Debug)]
 pub struct Map {
-    name: String,
-    things: (),
-    vertexes: Vertexes,
-    sidedefs: Sidedefs,
-    linedefs: Linedefs,
-    sectors: Sectors,
+    /// Map name such as `E1M1` or `MAP01`.
+    pub name: String,
+
+    /// A list of things indexed by number.
+    pub things: (),
+
+    /// A list of vertexes indexed by number.
+    pub vertexes: Vertexes,
+
+    /// A list of sidedefs indexed by number.
+    pub sidedefs: Sidedefs,
+
+    /// A list of linedefs indexed by number.
+    pub linedefs: Linedefs,
+
+    /// A list of sectors indexed by number.
+    pub sectors: Sectors,
 }
 
 impl Map {
