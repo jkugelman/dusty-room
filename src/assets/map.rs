@@ -1,7 +1,9 @@
+pub use linedef::*;
 pub use sector::*;
 pub use sidedef::*;
 pub use vertex::*;
 
+mod linedef;
 mod sector;
 mod sidedef;
 mod vertex;
@@ -15,7 +17,7 @@ pub struct Map {
     things: (),
     vertexes: Vertexes,
     sidedefs: Sidedefs,
-    linedefs: (),
+    linedefs: Linedefs,
     sectors: Sectors,
 }
 
@@ -36,7 +38,7 @@ impl Map {
         let vertexes = Vertexes::load(&lumps)?;
         let sectors = Sectors::load(&lumps)?;
         let sidedefs = Sidedefs::load(&lumps)?;
-        let linedefs = Self::read_linedefs(lumps[2].expect_name("LINEDEFS")?);
+        let linedefs = Linedefs::load(&lumps)?;
 
         Ok(Some(Map {
             name,
@@ -49,7 +51,6 @@ impl Map {
     }
 
     fn read_things(_lump: &Lump) {}
-    fn read_linedefs(_lump: &Lump) {}
 }
 
 impl fmt::Debug for Map {
