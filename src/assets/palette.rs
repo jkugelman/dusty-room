@@ -6,14 +6,15 @@ use bytes::{Buf, Bytes};
 
 use crate::wad::{self, Cursor, Wad};
 
-/// A bank of color palettes loaded from the `PLAYPAL` lump.
+/// A bank of color palettes from the `PLAYPAL` lump. The bank always has an [active] palette, which
+/// can be [switched] at any time.
 ///
-/// The active palette can be switched at any time. There is no palette selected initially so make
-/// sure to choose one.
+/// [active]: Self::active
+/// [switched]: Self::switch
 #[derive(Debug)]
 pub struct PaletteBank {
     palettes: Vec<Palette>,
-    active_index: Option<usize>,
+    active: usize,
 }
 
 impl PaletteBank {
@@ -23,6 +24,7 @@ impl PaletteBank {
         let mut cursor = lump.cursor();
 
         let mut palettes = Vec::with_capacity(lump.size() / PALETTE_BYTES);
+        cursor.need(1)?;
 
         while cursor.has_remaining() {
             palettes.push(Palette::load(&mut cursor)?);
@@ -32,7 +34,7 @@ impl PaletteBank {
 
         Ok(PaletteBank {
             palettes,
-            active_index: None,
+            active: 0,
         })
     }
 
@@ -41,19 +43,19 @@ impl PaletteBank {
         self.palettes.len()
     }
 
-    /// Gets the active palette.
+    /// Returns the active palette.
     pub fn active(&self) -> &Palette {
-        &self.palettes[self.active_index.expect("active palette not set")]
+        &self.palettes[self.active]
     }
 
-    /// Sets and returns the active palette.
+    /// Switches the active palette.
     ///
     /// # Panics
     ///
     /// Panics if `index` is out of range.
-    pub fn set_active(&mut self, index: usize) -> &Palette {
+    pub fn switch(&mut self, index: usize) -> &Palette {
         assert!(index < self.count());
-        self.active_index = Some(index);
+        self.active = index;
         self.active()
     }
 }
@@ -96,11 +98,11 @@ mod tests {
 
         assert_eq!(palettes.count(), 14);
 
-        let p0 = palettes.set_active(0);
+        let p0 = palettes.switch(0);
         assert_eq!(p0[0], (0, 0, 0));
         assert_eq!(p0[255], (167, 107, 107));
 
-        let p13 = palettes.set_active(13);
+        let p13 = palettes.switch(13);
         assert_eq!(p13[0], (0, 32, 0));
         assert_eq!(p13[255], (147, 125, 94));
     }
