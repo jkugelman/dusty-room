@@ -60,7 +60,7 @@ impl std::ops::Deref for Sectors {
 ///
 /// [map]: crate::assets::Map
 /// [sidedefs]: crate::assets::Sidedef
-/// [texture]: crate::assets::Texture
+/// [texture]: crate::assets::Flat
 /// [linedefs]: crate::assets::Linedef
 #[derive(Debug)]
 pub struct Sector {
