@@ -12,6 +12,8 @@ use std::fmt;
 
 use crate::wad::{self, Lump, Wad};
 
+/// A map such as `E1M1`. Contains all the level geometry, monsters, items, and other things that
+/// make up a map.
 #[derive(Debug)]
 pub struct Map {
     name: String,

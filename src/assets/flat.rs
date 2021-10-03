@@ -6,14 +6,12 @@ use bytes::Bytes;
 
 use crate::wad::{self, Lump, Wad};
 
-/// A list of floor and ceiling textures, indexed by name.
+/// A bank of floor and ceiling textures, indexed by name.
 #[derive(Clone)]
 pub struct FlatBank(BTreeMap<String, Arc<Flat>>);
 
 impl FlatBank {
-    /// Loads all the flats from a [`Wad`].
-    ///
-    /// Flats are found between the `F_START` and `F_END` marker lumps.
+    /// Loads all the flats from a [`Wad`] found between the `F_START` and `F_END` marker lumps.
     pub fn load(wad: &Wad) -> wad::Result<Self> {
         let lumps = wad.lumps_between("F_START", "F_END")?;
         let mut flats = BTreeMap::new();
@@ -50,12 +48,12 @@ impl fmt::Debug for FlatBank {
 /// A floor or ceiling texture.
 #[derive(Clone)]
 pub struct Flat {
-    name: String,
+    pub name: String,
     pixels: Bytes,
 }
 
 impl Flat {
-    /// Load a flat from a lump.
+    /// Loads a flat from a lump.
     pub fn load(lump: &Lump) -> wad::Result<Self> {
         let width: usize = Self::width().into();
         let height: usize = Self::height().into();
@@ -66,11 +64,6 @@ impl Flat {
         cursor.done()?;
 
         Ok(Self { name, pixels })
-    }
-
-    /// Flat name, the name of its [`Lump`].
-    pub fn name(&self) -> &str {
-        &self.name
     }
 
     /// Width in pixels. Flats are always 64x64.

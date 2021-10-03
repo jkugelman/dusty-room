@@ -6,7 +6,7 @@ use bytes::{Buf, Bytes};
 
 use crate::wad::{self, Lump, Wad};
 
-/// A list of patches from the `PNAMES` lump.
+/// A bank of patches from the `PNAMES` lump.
 ///
 /// The patches are all optional because sometimes `PNAMES` lists missing patches. The shareware
 /// version of `doom.wad` is missing the `TEXTURE2` textures from the registered game, yet `PNAMES`
@@ -72,31 +72,46 @@ impl Index<u16> for PatchBank {
     }
 }
 
-/// A patch is an image that is used as the building block for a composite [`Texture`].
+/// A patch is an image that is used as the building block for a composite [texture].
 ///
-/// [`Texture`]: crate::assets::Texture
+/// [texture]: crate::assets::Texture
 #[derive(Clone)]
 pub struct Patch {
+    /// Patch name.
     pub name: String,
-    pub width: u16,
-    pub height: u16,
-    pub x: i16,
-    pub y: i16,
-    pub columns: Vec<Column>,
-}
 
-#[derive(Debug, Clone)]
-pub struct Column {
-    pub posts: Vec<Post>,
+    /// Width in pixels.
+    pub width: u16,
+
+    /// Height in pixels.
+    pub height: u16,
+
+    /// X offset. The number of pixels to the left of the center where the first column gets drawn.
+    ///
+    /// With wall patches this is always `width / 2 - 1`.
+    pub x: i16,
+
+    /// Y offset. The number of pixels above the origin where the top row gets drawn.
+    ///
+    /// With wall patches this is always `height - 5`.
+    pub y: i16,
+
+    columns: Vec<Column>,
 }
 
 #[derive(Clone)]
-pub struct Post {
-    pub y_offset: u16,
-    pub pixels: Bytes,
+struct Column {
+    posts: Vec<Post>,
+}
+
+#[derive(Clone)]
+struct Post {
+    y_offset: u16,
+    pixels: Bytes,
 }
 
 impl Patch {
+    /// Loads a patch from a lump.
     pub fn load(lump: &Lump) -> wad::Result<Self> {
         let mut cursor = lump.cursor();
 
@@ -175,31 +190,6 @@ impl Patch {
 
         Ok(Column { posts })
     }
-
-    /// The patch's name.
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// Width in pixels.
-    pub fn width(&self) -> u16 {
-        self.width
-    }
-
-    /// Height in pixels.
-    pub fn height(&self) -> u16 {
-        self.height
-    }
-
-    /// Left offset.
-    pub fn x(&self) -> i16 {
-        self.x
-    }
-
-    /// Top offset.
-    pub fn y(&self) -> i16 {
-        self.y
-    }
 }
 
 impl fmt::Debug for Patch {
@@ -250,23 +240,23 @@ mod tests {
         let patches = PatchBank::load(&DOOM2_WAD).unwrap();
 
         assert_eq!(patches.len(), 469);
-        assert_eq!(patches[69].name(), "RW12_2");
-        assert_eq!(patches[420].name(), "RW25_3");
+        assert_eq!(patches[69].name, "RW12_2");
+        assert_eq!(patches[420].name, "RW25_3");
 
         // Did we find the lowercased `w94_1` patch?
-        assert_eq!(patches[417].name(), "W94_1");
-        assert_eq!(patches[417].width(), 128);
-        assert_eq!(patches[417].height(), 128);
-        assert_eq!(patches[417].x(), 123);
-        assert_eq!(patches[417].y(), 63);
+        assert_eq!(patches[417].name, "W94_1");
+        assert_eq!(patches[417].width, 128);
+        assert_eq!(patches[417].height, 128);
+        assert_eq!(patches[417].x, 123);
+        assert_eq!(patches[417].y, 63);
     }
 
     #[test]
     fn missing() {
         let patches = PatchBank::load(&DOOM_WAD).unwrap();
 
-        assert_matches!(patches.get(161), Ok(patch) if patch.name() == "WALL24_1");
-        assert_matches!(patches.get(162), Ok(patch) if patch.name() == "W94_1");
+        assert_matches!(patches.get(161), Ok(patch) if patch.name == "WALL24_1");
+        assert_matches!(patches.get(162), Ok(patch) if patch.name == "W94_1");
         assert_matches!(patches.get(163), Err(Some("W104_1")));
         assert_matches!(patches.get(164), Err(Some("DOOR9_2")));
     }

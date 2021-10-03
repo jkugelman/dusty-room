@@ -3,8 +3,9 @@ use std::convert::TryInto;
 
 use bytes::Buf;
 
-use crate::wad::{self, Cursor, Lump, Wad};
+use crate::wad::{self, Lump, Wad};
 
+/// A bank of [`Texture`]s from the `TEXTURE1` and `TEXTURE2` lumps, indexed by name.
 #[derive(Clone, Debug)]
 pub struct TextureBank(BTreeMap<String, Texture>);
 
@@ -47,7 +48,7 @@ impl TextureBank {
         // Read textures.
         for offset in offsets {
             let texture = Texture::load(lump, offset.try_into().unwrap())?;
-            textures.insert(texture.name().to_owned(), texture);
+            textures.insert(texture.name.clone(), texture);
         }
 
         Ok(())
@@ -59,12 +60,29 @@ impl TextureBank {
     }
 }
 
+/// A wall texture drawn on the upper, lower, and middle areas of [sidedefs].
+///
+/// Each wall texture is composed of one or more [patches] drawn at different offsets. Patches can
+/// be repeated, tiled, and overlapped. Textures can also have transparent areas where no patches
+/// are drawn.
+///
+/// [sidedefs]: crate::assets::Sidedef
+/// [patches]: crate::assets::Patch
 #[derive(Clone, Debug)]
 pub struct Texture {
+    /// Name of the texture. Used by [sidedefs].
+    ///
+    /// [sidedefs]: crate::assets::Sidedef
     pub name: String,
+
+    /// Total width in pixels.
     pub width: u16,
+
+    /// Total height in pixels.
     pub height: u16,
-    pub patches: Vec<PatchPlacement>,
+
+    /// A list of patches and their X and Y offsets.
+    patches: Vec<PatchPlacement>,
 }
 
 impl Texture {
@@ -104,41 +122,18 @@ impl Texture {
             patches,
         })
     }
-
-    /// The texture's name.
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// The texture's width in pixels.
-    pub fn width(&self) -> u16 {
-        self.width
-    }
-
-    /// The texture's height in pixels.
-    pub fn height(&self) -> u16 {
-        self.height
-    }
 }
 
 #[derive(Clone, Debug)]
-pub struct PatchPlacement {
+struct PatchPlacement {
+    /// X offset of the patch on the texture's "canvas".
     pub x: u16,
+
+    /// Y offset of the patch on the texture's "canvas".
     pub y: u16,
+
+    /// Patch number to draw.
     pub patch: u16,
-}
-
-impl PatchPlacement {
-    pub fn load(cursor: &mut Cursor) -> wad::Result<Self> {
-        cursor.need(10)?;
-        let x = cursor.get_u16_le();
-        let y = cursor.get_u16_le();
-        let patch = cursor.get_u16_le();
-        let _unused = cursor.get_u16_le();
-        let _unused = cursor.get_u16_le();
-
-        Ok(Self { x, y, patch })
-    }
 }
 
 #[cfg(test)]
@@ -153,9 +148,9 @@ mod tests {
         let textures = TextureBank::load(&BIOTECH_WAD).unwrap();
 
         let exit_door = textures.get("EXITDOOR").unwrap();
-        assert_eq!(exit_door.name(), "EXITDOOR");
-        assert_eq!(exit_door.width(), 128);
-        assert_eq!(exit_door.height(), 72);
+        assert_eq!(exit_door.name, "EXITDOOR");
+        assert_eq!(exit_door.width, 128);
+        assert_eq!(exit_door.height, 72);
         assert_eq!(exit_door.patches.len(), 4);
         assert_eq!(exit_door.patches[0].x, 0);
         assert_eq!(exit_door.patches[0].y, 0);

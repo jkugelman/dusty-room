@@ -52,10 +52,10 @@ impl Sectors {
 /// [linedefs]: crate::assets::Linedef
 #[derive(Debug)]
 pub struct Sector {
-    /// Floor is at this height for the sector.
+    /// Floor height.
     pub floor_height: i16,
 
-    /// Ceiling is at this height for the sector.
+    /// Ceiling height.
     pub ceiling_height: i16,
 
     /// Name of the flat used for the floor texture.
@@ -70,9 +70,8 @@ pub struct Sector {
 
     pub special_type: u16,
 
-    /// A tag number corresponding to [linedefs] with the same tag number. When those linedefs are
-    /// activated something will usually happen to this sector: its floor will rise, the lights will
-    /// go out, etc.
+    /// A tag number. When [linedefs] with the same tag number are activated something will usually
+    /// happen to this sector: its floor will rise, the lights will go out, etc.
     ///
     /// [linedefs]: crate::assets::Linedef
     pub tag_number: u16,
