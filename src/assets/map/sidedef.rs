@@ -1,5 +1,8 @@
+use std::ops::Deref;
+
 use bytes::Buf;
 
+use crate::assets::Sectors;
 use crate::wad::{self, Lumps};
 
 /// A list of [sidedefs] for a particular [map], indexed by number.
@@ -11,7 +14,7 @@ pub struct Sidedefs(Vec<Sidedef>);
 
 impl Sidedefs {
     /// Loads a map's sidedefs from its `SIDEDEFS` lump.
-    pub fn load(lumps: &Lumps) -> wad::Result<Self> {
+    pub fn load(lumps: &Lumps, sectors: &Sectors) -> wad::Result<Self> {
         let lump = lumps[3].expect_name("SIDEDEFS")?;
         let mut cursor = lump.cursor();
 
@@ -25,6 +28,14 @@ impl Sidedefs {
             let lower_texture = optional(cursor.get_name());
             let middle_texture = optional(cursor.get_name());
             let sector = cursor.get_u16_le();
+
+            sectors.get(usize::from(sector)).ok_or_else(|| {
+                lump.error(format!(
+                    "sidedef #{} has invalid sector #{}",
+                    sidedefs.len(),
+                    sector
+                ))
+            })?;
 
             sidedefs.push(Sidedef {
                 x_offset,
@@ -46,6 +57,14 @@ fn optional(name: String) -> Option<String> {
     match name.as_str() {
         "-" => None,
         _ => Some(name),
+    }
+}
+
+impl Deref for Sidedefs {
+    type Target = Vec<Sidedef>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

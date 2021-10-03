@@ -46,6 +46,14 @@ impl Sectors {
     }
 }
 
+impl std::ops::Deref for Sectors {
+    type Target = Vec<Sector>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 /// A horizontal (east-west and north-south) area of the [map] where a floor height and ceiling
 /// height are defined. Its shape its defined by its [sidedefs]. Any change in floor or ceiling
 /// height or [texture] requires a new sector (and therefore separating [linedefs] and sidedefs).

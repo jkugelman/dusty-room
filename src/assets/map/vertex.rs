@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use bytes::Buf;
 
 use crate::wad::{self, Lumps};
@@ -31,6 +33,14 @@ impl Vertexes {
         cursor.done()?;
 
         Ok(Self(vertexes))
+    }
+}
+
+impl Deref for Vertexes {
+    type Target = Vec<Vertex>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

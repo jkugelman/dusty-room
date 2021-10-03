@@ -1,5 +1,6 @@
 use bytes::Buf;
 
+use crate::assets::{Sidedefs, Vertexes};
 use crate::wad::{self, Lumps};
 
 /// A list of [linedefs] for a particular [map], indexed by number.
@@ -11,7 +12,7 @@ pub struct Linedefs(Vec<Linedef>);
 
 impl Linedefs {
     /// Loads a map's linedefs from its `LINEDEFS` lump.
-    pub fn load(lumps: &Lumps) -> wad::Result<Self> {
+    pub fn load(lumps: &Lumps, vertexes: &Vertexes, sidedefs: &Sidedefs) -> wad::Result<Self> {
         let lump = lumps[2].expect_name("LINEDEFS")?;
         let mut cursor = lump.cursor();
 
@@ -24,8 +25,44 @@ impl Linedefs {
             let flags = cursor.get_u16_le();
             let types = cursor.get_u16_le();
             let tag = cursor.get_u16_le();
-            let right_sidedef = cursor.get_u16_le();
+            let right_sidedef = optional(cursor.get_u16_le()).ok_or_else(|| {
+                lump.error(format!("linedef #{} missing right sidedef", linedefs.len()))
+            })?;
             let left_sidedef = optional(cursor.get_u16_le());
+
+            vertexes.get(usize::from(start_vertex)).ok_or_else(|| {
+                lump.error(format!(
+                    "linedef #{} has invalid start vertex #{}",
+                    linedefs.len(),
+                    start_vertex
+                ))
+            })?;
+
+            vertexes.get(usize::from(end_vertex)).ok_or_else(|| {
+                lump.error(format!(
+                    "linedef #{} has invalid end vertex #{}",
+                    linedefs.len(),
+                    end_vertex
+                ))
+            })?;
+
+            sidedefs.get(usize::from(right_sidedef)).ok_or_else(|| {
+                lump.error(format!(
+                    "linedef #{} has invalid right sidedef #{}",
+                    linedefs.len(),
+                    right_sidedef
+                ))
+            })?;
+
+            if let Some(left_sidedef) = left_sidedef {
+                sidedefs.get(usize::from(left_sidedef)).ok_or_else(|| {
+                    lump.error(format!(
+                        "linedef #{} has invalid left sidedef #{}",
+                        linedefs.len(),
+                        left_sidedef
+                    ))
+                })?;
+            }
 
             linedefs.push(Linedef {
                 start_vertex,
