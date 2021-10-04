@@ -47,16 +47,30 @@ impl Cursor<'_> {
     /// Check if there is unread data:
     ///
     /// ```no_run
-    /// let value = cursor.need(4)?.get_u32();
+    /// # use bytes::Buf;
+    /// # let lump = kdoom::wad::Wad::load("")?.lump("")?;
+    /// # let mut cursor = lump.cursor();
+    /// #
+    /// cursor.need(4)?;
+    /// let value = cursor.get_u32_le();
     /// cursor.done()?;
+    /// #
+    /// # Ok::<(), kdoom::wad::Error>(())
     /// ```
     ///
     /// Ignore unread data:
     ///
     /// ```no_run
-    /// let value = cursor.need(4)?.get_u32();
+    /// # use bytes::Buf;
+    /// # let lump = kdoom::wad::Wad::load("")?.lump("")?;
+    /// # let mut cursor = lump.cursor();
+    /// #
+    /// cursor.need(4)?;
+    /// let value = cursor.get_u32_le();
     /// cursor.clear();
     /// cursor.done()?;
+    /// #
+    /// # Ok::<(), kdoom::wad::Error>(())
     /// ```
     pub fn done(self) -> wad::Result<()> {
         if self.is_empty() {
@@ -73,7 +87,13 @@ impl Cursor<'_> {
     /// # Examples
     ///
     /// ```no_run
-    /// let name: String = cursor.need(8)?.get_name();
+    /// # let lump = kdoom::wad::Wad::load("")?.lump("")?;
+    /// # let mut cursor = lump.cursor();
+    /// #
+    /// cursor.need(8)?;
+    /// let name: String = cursor.get_name();
+    /// #
+    /// # Ok::<(), kdoom::wad::Error>(())
     /// ```
     ///
     /// # Panics

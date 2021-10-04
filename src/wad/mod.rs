@@ -2,17 +2,19 @@
 //!
 //! # Examples
 //!
-//! Load the game IWAD and add a custom level.
+//! Load a custom level:
 //!
-//! ```
+//! ```no_run
 //! use kdoom::wad::Wad;
 //!
 //! let game_wad = Wad::load("doom.wad")?;
-//! let my_wad = game.patch("killer.wad")?;
+//! let my_wad = game_wad.patch("killer.wad")?;
 //!
 //! let my_level = my_wad.lumps_following("E1M1", 11)?;
-//! let things_lump = my_level.get_with_name(1, "THINGS")?;
-//! let sectors_lump = my_level.get_with_name(8, "SECTORS")?;
+//! let things_lump = my_level[1].expect_name("THINGS")?;
+//! let sectors_lump = my_level[8].expect_name("SECTORS")?;
+//! #
+//! # Ok::<(), kdoom::wad::Error>(())
 //! ```
 
 pub use cursor::*;
