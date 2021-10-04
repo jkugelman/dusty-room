@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::convert::TryInto;
 use std::ops::{Deref, DerefMut};
 
@@ -6,8 +5,47 @@ use bytes::{Buf, Bytes};
 
 use crate::wad::{self, parse_name, Lump};
 
-/// A thin wrapper around [`Bytes`] that allows for checking if there's data available before
-/// reading it.
+/// A moving cursor for reading data from a [`Lump`]. `Cursor` is a thin wrapper around [`Bytes`]
+/// that allows for checking if there's data available before reading it.
+///
+/// It is important to always call [`done`] when when parsing is finished to ensure there is no
+/// extra trailing data. You can [`clear`] the cursor if trailing data is expected.
+///
+/// # Examples
+///
+/// Read a 12-byte lump containing a 4-byte number and an 8-byte name:
+///
+/// ```no_run
+/// # use bytes::Buf;
+/// # let lump = kdoom::wad::Wad::load("")?.lump("")?;
+/// #
+/// let mut cursor = lump.cursor();
+///
+/// cursor.need(12)?;
+/// let value = cursor.get_u32_le();
+/// let name = cursor.get_name();
+///
+/// cursor.done()?;
+/// #
+/// # Ok::<(), kdoom::wad::Error>(())
+/// ```
+///
+/// Ignore unread trailing data:
+///
+/// ```no_run
+/// # use bytes::Buf;
+/// # let lump = kdoom::wad::Wad::load("")?.lump("")?;
+/// # let mut cursor = lump.cursor();
+/// #
+/// cursor.clear();
+/// cursor.done()?;
+/// #
+/// # Ok::<(), kdoom::wad::Error>(())
+///
+/// ```
+///
+/// [`done`]: Self::done
+/// [`clear`]: Bytes::clear
 pub struct Cursor<'lump> {
     lump: &'lump Lump,
     data: Bytes,
@@ -20,7 +58,8 @@ impl<'lump> Cursor<'lump> {
 }
 
 impl Cursor<'_> {
-    /// Checks that there are at least `size` bytes remaining.
+    /// Checks that there are at least `size` bytes remaining. Always call this before reading
+    /// anything as [`Bytes`]'s methods will panic if there is insufficient data.
     pub fn need(&self, size: usize) -> wad::Result<()> {
         if self.len() >= size {
             Ok(())
@@ -37,41 +76,10 @@ impl Cursor<'_> {
     }
 
     /// Checks if there is unread data, then drops the cursor. This function should always be called
-    /// when parsing is completes successfully to ensure there is no extra trailing data. You can
-    /// [`clear`] the cursor if trailing data is expected.
+    /// when parsing is finished to ensure there is no extra trailing data. You can [`clear`] the
+    /// cursor if trailing data is expected.
     ///
     /// [`clear`]: Bytes::clear
-    ///
-    /// # Examples
-    ///
-    /// Check if there is unread data:
-    ///
-    /// ```no_run
-    /// # use bytes::Buf;
-    /// # let lump = kdoom::wad::Wad::load("")?.lump("")?;
-    /// # let mut cursor = lump.cursor();
-    /// #
-    /// cursor.need(4)?;
-    /// let value = cursor.get_u32_le();
-    /// cursor.done()?;
-    /// #
-    /// # Ok::<(), kdoom::wad::Error>(())
-    /// ```
-    ///
-    /// Ignore unread data:
-    ///
-    /// ```no_run
-    /// # use bytes::Buf;
-    /// # let lump = kdoom::wad::Wad::load("")?.lump("")?;
-    /// # let mut cursor = lump.cursor();
-    /// #
-    /// cursor.need(4)?;
-    /// let value = cursor.get_u32_le();
-    /// cursor.clear();
-    /// cursor.done()?;
-    /// #
-    /// # Ok::<(), kdoom::wad::Error>(())
-    /// ```
     pub fn done(self) -> wad::Result<()> {
         if self.is_empty() {
             Ok(())
@@ -82,8 +90,6 @@ impl Cursor<'_> {
 
     /// Reads an 8-byte, NUL padded name.
     ///
-    /// The caller is responsible for calling `self.need(8)?`.
-    ///
     /// # Examples
     ///
     /// ```no_run
@@ -91,7 +97,7 @@ impl Cursor<'_> {
     /// # let mut cursor = lump.cursor();
     /// #
     /// cursor.need(8)?;
-    /// let name: String = cursor.get_name();
+    /// let name = cursor.get_name();
     /// #
     /// # Ok::<(), kdoom::wad::Error>(())
     /// ```
@@ -101,11 +107,6 @@ impl Cursor<'_> {
     /// Panics if there are fewer than 8 bytes remaining.
     pub fn get_name(&mut self) -> String {
         parse_name(self.split_to(8).as_ref().try_into().unwrap())
-    }
-
-    /// Creates a [`wad::Error::Malformed`] blaming this cursor's lump.
-    pub fn error(&self, desc: impl Into<Cow<'static, str>>) -> wad::Error {
-        self.lump.error(desc)
     }
 }
 
