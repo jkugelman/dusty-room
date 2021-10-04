@@ -1,4 +1,4 @@
-use std::ops::Index;
+use std::ops::{Deref, Index};
 
 use bytes::Buf;
 
@@ -90,6 +90,14 @@ impl Index<u16> for Linedefs {
     /// Looks up a linedef number.
     fn index(&self, number: u16) -> &Self::Output {
         &self.0[usize::from(number)]
+    }
+}
+
+impl Deref for Linedefs {
+    type Target = Vec<Linedef>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

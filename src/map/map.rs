@@ -67,6 +67,7 @@ impl fmt::Display for Map {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::assets::{Flat, Texture};
     use crate::wad::test::*;
 
     #[test]
@@ -78,5 +79,28 @@ mod tests {
         let assets = Assets::load(&DOOM2_WAD).unwrap();
         assert_matches!(Map::load(&DOOM2_WAD, "MAP31", &assets).unwrap(), Some(_));
         assert_matches!(Map::load(&DOOM2_WAD, "MAP99", &assets).unwrap(), None);
+    }
+
+    #[test]
+    fn geometry() {
+        let assets = Assets::load(&DOOM2_WAD).unwrap();
+        let map = Map::load(&DOOM2_WAD, "MAP31", &assets)
+            .expect("failed to load")
+            .expect("map missing");
+
+        assert_eq!(map.vertexes.len(), 635);
+        assert_eq!(map.linedefs.len(), 686);
+        assert_eq!(map.sidedefs.len(), 783);
+        assert_eq!(map.sectors.len(), 80);
+
+        assert_matches!(
+            map.linedefs[42].right_sidedef(&map).middle_texture(&assets),
+            Some(Texture { name, width: 128, height: 128, .. }) if name == "ZZWOLF9"
+        );
+
+        assert_matches!(
+            map.sectors[69].ceiling_flat(&assets),
+            Flat { name, .. } if name == "CEIL5_1"
+        );
     }
 }
