@@ -1,16 +1,16 @@
 use std::collections::BTreeMap;
 use std::fmt;
-use std::sync::Arc;
+use std::ops::{Deref, Index};
 
 use bytes::Bytes;
 
 use crate::wad::{self, Lump, Wad};
 
-/// A bank of floor and ceiling textures for [sectors], indexed by name.
+/// A bank of [sector] floor and ceiling textures, indexed by name.
 ///
-/// [sectors]: crate::map::Sector
+/// [sector]: crate::map::Sector
 #[derive(Clone)]
-pub struct FlatBank(BTreeMap<String, Arc<Flat>>);
+pub struct FlatBank(BTreeMap<String, Flat>);
 
 impl FlatBank {
     /// Loads all the flats from a [`Wad`] found between the `F_START` and `F_END` marker lumps.
@@ -23,7 +23,7 @@ impl FlatBank {
                 continue;
             }
 
-            let flat = Arc::new(Flat::load(&lump)?);
+            let flat = Flat::load(&lump)?;
             let existing = flats.insert(flat.name.clone(), flat);
 
             if existing.is_some() {
@@ -34,8 +34,26 @@ impl FlatBank {
         Ok(Self(flats))
     }
 
-    pub fn get(&self, name: &str) -> Option<&Arc<Flat>> {
+    /// Looks up a flat name.
+    pub fn get(&self, name: &str) -> Option<&Flat> {
         self.0.get(name)
+    }
+}
+
+impl Index<&str> for FlatBank {
+    type Output = Flat;
+
+    /// Looks up a flat name.
+    fn index(&self, name: &str) -> &Self::Output {
+        self.get(name).expect("flat missing")
+    }
+}
+
+impl Deref for FlatBank {
+    type Target = BTreeMap<String, Flat>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -47,9 +65,9 @@ impl fmt::Debug for FlatBank {
     }
 }
 
-/// A floor or ceiling texture for [sectors].
+/// A [sector] floor or ceiling texture.
 ///
-/// [sectors]: crate::map::Sector
+/// [sector]: crate::map::Sector
 #[derive(Clone)]
 pub struct Flat {
     /// Name of the flat. Used by [sectors].

@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 use std::fmt;
-use std::ops::Index;
+use std::ops::{Deref, Index};
 
 use bytes::{Buf, Bytes};
 
@@ -56,7 +56,7 @@ impl PatchBank {
     ///
     /// # Errors
     ///
-    /// Returns `Err(None)` if the index is out of range.
+    /// If the index is out of range returns `Err(None)`.
     ///
     /// If the index is valid but the patch is missing, returns `Err(Some(name))` with the name of
     /// the missing patch. This happens with the shareware version of `doom.wad`.
@@ -72,6 +72,14 @@ impl Index<u16> for PatchBank {
     /// Looks up a patch number.
     fn index(&self, index: u16) -> &Self::Output {
         self.0[usize::from(index)].1.as_ref().unwrap()
+    }
+}
+
+impl Deref for PatchBank {
+    type Target = Vec<(String, Option<Patch>)>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

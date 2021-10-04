@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::convert::TryInto;
-use std::ops::Index;
+use std::ops::{Deref, Index};
 
 use bytes::Buf;
 
@@ -64,12 +64,20 @@ impl TextureBank {
     }
 }
 
-impl Index<&'_ str> for TextureBank {
+impl Index<&str> for TextureBank {
     type Output = Texture;
 
     /// Looks up a texture name. Case insensitive.
     fn index(&self, name: &str) -> &Self::Output {
         self.get(name).expect("texture not found")
+    }
+}
+
+impl Deref for TextureBank {
+    type Target = BTreeMap<String, Texture>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

@@ -3,7 +3,7 @@ use std::ops::Index;
 
 use bytes::Buf;
 
-use crate::assets::Assets;
+use crate::assets::{Assets, Flat};
 use crate::wad::{self, Lumps};
 
 /// A list of [sectors] for a particular [map], indexed by number.
@@ -72,7 +72,7 @@ impl Index<u16> for Sectors {
 
     /// Looks up a sector number.
     fn index(&self, number: u16) -> &Self::Output {
-        &self.0[usize::from(number)]
+        self.get(number).expect("sector missing")
     }
 }
 
@@ -121,4 +121,16 @@ pub struct Sector {
     ///
     /// [linedefs]: crate::map::Linedef
     pub tag: u16,
+}
+
+impl Sector {
+    /// Looks up the sector's floor flat.
+    pub fn floor_flat<'assets>(&self, assets: &'assets Assets) -> &'assets Flat {
+        &assets.flat_bank[&self.floor_flat]
+    }
+
+    /// Looks up the sector's ceiling flat.
+    pub fn ceiling_flat<'assets>(&self, assets: &'assets Assets) -> &'assets Flat {
+        &assets.flat_bank[&self.ceiling_flat]
+    }
 }

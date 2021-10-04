@@ -2,7 +2,7 @@ use std::ops::{Deref, Index};
 
 use bytes::Buf;
 
-use crate::assets::Assets;
+use crate::assets::{Assets, Texture};
 use crate::map::{Map, Sector, Sectors};
 use crate::wad::{self, Lumps};
 
@@ -141,6 +141,21 @@ pub struct Sidedef {
 }
 
 impl Sidedef {
+    /// Looks up the sidedef's upper texture.
+    pub fn upper_texture<'assets>(&self, assets: &'assets Assets) -> Option<&'assets Texture> {
+        Some(&assets.texture_bank[self.upper_texture.as_ref()?])
+    }
+
+    /// Looks up the sidedef's lower texture.
+    pub fn lower_texture<'assets>(&self, assets: &'assets Assets) -> Option<&'assets Texture> {
+        Some(&assets.texture_bank[self.lower_texture.as_ref()?])
+    }
+
+    /// Looks up the sidedef's middle texture.
+    pub fn middle_texture<'assets>(&self, assets: &'assets Assets) -> Option<&'assets Texture> {
+        Some(&assets.texture_bank[self.middle_texture.as_ref()?])
+    }
+
     /// Looks up the sidedef's sector.
     pub fn sector<'map>(&self, map: &'map Map) -> &'map Sector {
         &map.sectors[self.sector]
