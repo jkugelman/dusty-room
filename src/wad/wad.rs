@@ -1,3 +1,4 @@
+use std::iter::once;
 use std::{path::Path, sync::Arc};
 
 use crate::wad::{self, Lump, Lumps, WadFile, WadKind};
@@ -99,8 +100,8 @@ impl Wad {
     ///
     /// [reverse]: Iterator::rev
     pub fn files(&self) -> impl Iterator<Item = &WadFile> + DoubleEndedIterator {
-        let initial = Some(Arc::as_ref(&self.initial)).into_iter();
-        let patches = self.patches.iter().map(Arc::as_ref);
+        let initial = once(&*self.initial);
+        let patches = self.patches.iter().map(|p| &**p);
         initial.chain(patches)
     }
 
