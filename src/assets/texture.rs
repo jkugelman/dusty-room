@@ -40,7 +40,12 @@ impl TextureBank {
         // Don't worry about overflow converting from `u32` to `usize`. The wrong capacity won't
         // affect correctness.
         let mut offsets = Vec::with_capacity(count.clamp(0, 1024) as usize);
-        cursor.need((count * 4).try_into().unwrap())?;
+        let need: usize = count
+            .checked_mul(4)
+            .ok_or_else(|| lump.error(format!("bad count {}", count)))?
+            .try_into()
+            .unwrap();
+        cursor.need(need)?;
 
         for _ in 0..count {
             offsets.push(cursor.get_u32_le());
