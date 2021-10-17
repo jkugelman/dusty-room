@@ -17,7 +17,7 @@ use crate::wad::{self, parse_name, Lump};
 ///
 /// ```no_run
 /// # use bytes::Buf;
-/// # let lump = kdoom::wad::Wad::load("")?.lump("")?;
+/// # let lump = dusty_room::wad::Wad::load("")?.lump("")?;
 /// #
 /// let mut cursor = lump.cursor();
 ///
@@ -27,20 +27,20 @@ use crate::wad::{self, parse_name, Lump};
 ///
 /// cursor.done()?;
 /// #
-/// # Ok::<(), kdoom::wad::Error>(())
+/// # Ok::<(), dusty_room::wad::Error>(())
 /// ```
 ///
 /// Ignore unread trailing data:
 ///
 /// ```no_run
 /// # use bytes::Buf;
-/// # let lump = kdoom::wad::Wad::load("")?.lump("")?;
+/// # let lump = dusty_room::wad::Wad::load("")?.lump("")?;
 /// # let mut cursor = lump.cursor();
 /// #
 /// cursor.clear();
 /// cursor.done()?;
 /// #
-/// # Ok::<(), kdoom::wad::Error>(())
+/// # Ok::<(), dusty_room::wad::Error>(())
 ///
 /// ```
 ///
@@ -93,13 +93,13 @@ impl Cursor<'_> {
     /// # Examples
     ///
     /// ```no_run
-    /// # let lump = kdoom::wad::Wad::load("")?.lump("")?;
+    /// # let lump = dusty_room::wad::Wad::load("")?.lump("")?;
     /// # let mut cursor = lump.cursor();
     /// #
     /// cursor.need(8)?;
     /// let name = cursor.get_name();
     /// #
-    /// # Ok::<(), kdoom::wad::Error>(())
+    /// # Ok::<(), dusty_room::wad::Error>(())
     /// ```
     ///
     /// # Panics

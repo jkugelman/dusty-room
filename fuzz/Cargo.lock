@@ -56,7 +56,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "kdoom"
+name = "dusty-room"
 version = "0.1.0"
 dependencies = [
  "assert_matches",
@@ -67,10 +67,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "kdoom-fuzz"
+name = "dusty-room-fuzz"
 version = "0.0.0"
 dependencies = [
- "kdoom",
+ "dusty-room",
  "libfuzzer-sys",
  "tempfile",
 ]

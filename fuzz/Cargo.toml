@@ -1,6 +1,6 @@
 
 [package]
-name = "kdoom-fuzz"
+name = "dusty-room-fuzz"
 version = "0.0.0"
 authors = ["Automatically generated"]
 publish = false
@@ -13,7 +13,7 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 tempfile = "3.2.0"
 
-[dependencies.kdoom]
+[dependencies.dusty-room]
 path = ".."
 
 # Prevent this from interfering with workspaces

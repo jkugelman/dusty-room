@@ -1,15 +1,15 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 
-extern crate kdoom;
+extern crate dusty_room;
 
 use std::error::Error;
 use std::io::Write;
 
 use tempfile::NamedTempFile;
 
-use kdoom::assets::Assets;
-use kdoom::wad::Wad;
+use dusty_room::assets::Assets;
+use dusty_room::wad::Wad;
 
 fuzz_target!(|data: &[u8]| {
     let result: Result<(), Box<dyn Error>> = (|| {

@@ -5,7 +5,7 @@
 //! Load a custom level:
 //!
 //! ```no_run
-//! use kdoom::wad::Wad;
+//! use dusty_room::wad::Wad;
 //!
 //! let game_wad = Wad::load("doom.wad")?;
 //! let my_wad = game_wad.patch("killer.wad")?;
@@ -14,7 +14,7 @@
 //! let things_lump = my_level[1].expect_name("THINGS")?;
 //! let sectors_lump = my_level[8].expect_name("SECTORS")?;
 //! #
-//! # Ok::<(), kdoom::wad::Error>(())
+//! # Ok::<(), dusty_room::wad::Error>(())
 //! ```
 
 pub use cursor::*;
