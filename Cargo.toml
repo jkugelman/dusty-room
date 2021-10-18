@@ -1,7 +1,13 @@
 [package]
 name = "dusty-room"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2018"
+authors = ["John Kugelman <john@kugelman.name>"]
+description = "Rusty DOOM"
+repository = "https://github.com/jkugelman/dusty-room/"
+license = "MIT"
+keywords = ["game"]
+categories = ["games"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
