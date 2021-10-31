@@ -1,7 +1,7 @@
 [package]
 name = "dusty-room"
 version = "0.0.1"
-edition = "2018"
+edition = "2021"
 authors = ["John Kugelman <john@kugelman.name>"]
 description = "Rusty DOOM"
 repository = "https://github.com/jkugelman/dusty-room/"
