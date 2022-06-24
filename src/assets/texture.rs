@@ -139,12 +139,7 @@ impl Texture {
         cursor.clear();
         cursor.done()?;
 
-        Ok(Self {
-            name,
-            width,
-            height,
-            patches,
-        })
+        Ok(Self { name, width, height, patches })
     }
 }
 
@@ -178,27 +173,15 @@ mod tests {
         assert_eq!(exit_door.patches.len(), 4);
         assert_eq!(exit_door.patches[0].x, 0);
         assert_eq!(exit_door.patches[0].y, 0);
-        assert_eq!(
-            patches.get(exit_door.patches[0].patch).unwrap().name,
-            "DOOR3_6"
-        );
+        assert_eq!(patches.get(exit_door.patches[0].patch).unwrap().name, "DOOR3_6");
         assert_eq!(exit_door.patches[1].x, 64);
         assert_eq!(exit_door.patches[1].y, 0);
-        assert_eq!(
-            patches.get(exit_door.patches[1].patch).unwrap().name,
-            "DOOR3_4"
-        );
+        assert_eq!(patches.get(exit_door.patches[1].patch).unwrap().name, "DOOR3_4");
         assert_eq!(exit_door.patches[2].x, 88);
         assert_eq!(exit_door.patches[2].y, 0);
-        assert_eq!(
-            patches.get(exit_door.patches[2].patch).unwrap().name,
-            "DOOR3_5"
-        );
+        assert_eq!(patches.get(exit_door.patches[2].patch).unwrap().name, "DOOR3_5");
         assert_eq!(exit_door.patches[3].x, 112);
         assert_eq!(exit_door.patches[3].y, 0);
-        assert_eq!(
-            patches.get(exit_door.patches[3].patch).unwrap().name,
-            "T14_5"
-        );
+        assert_eq!(patches.get(exit_door.patches[3].patch).unwrap().name, "T14_5");
     }
 }

@@ -62,9 +62,6 @@ pub enum Error {
 impl Error {
     /// Creates an [`Error::Malformed`]. Accepts both `&'static str` literals and owned `String`s.
     pub fn malformed(path: impl AsRef<Path>, desc: impl Into<Cow<'static, str>>) -> Self {
-        Self::Malformed {
-            path: path.as_ref().to_owned(),
-            desc: desc.into(),
-        }
+        Self::Malformed { path: path.as_ref().to_owned(), desc: desc.into() }
     }
 }

@@ -21,11 +21,7 @@ impl Assets {
         let flat_bank = FlatBank::load(wad)?;
         let texture_bank = TextureBank::load(wad)?;
 
-        Ok(Assets {
-            palette_bank,
-            flat_bank,
-            texture_bank,
-        })
+        Ok(Assets { palette_bank, flat_bank, texture_bank })
     }
 }
 

@@ -50,10 +50,7 @@ impl Wad {
     /// [`load`]: Self::load
     /// [`expect_kind`]: WadFile::expect_kind
     pub fn new(file: Arc<WadFile>) -> wad::Result<Self> {
-        Ok(Self {
-            initial: file,
-            patches: Vec::new(),
-        })
+        Ok(Self { initial: file, patches: Vec::new() })
     }
 
     /// Overlays a [PWAD].
@@ -206,10 +203,7 @@ mod tests {
 
     #[test]
     fn not_a_wad() {
-        assert_matches!(
-            Wad::load("test/killer.txt"),
-            Err(wad::Error::Malformed { .. })
-        );
+        assert_matches!(Wad::load("test/killer.txt"), Err(wad::Error::Malformed { .. }));
     }
 
     #[test]
@@ -258,10 +252,7 @@ mod tests {
     #[test]
     fn iwad_then_pwads() {
         // IWAD + PWAD = success.
-        let _ = Wad::load(DOOM_WAD_PATH)
-            .unwrap()
-            .patch(KILLER_WAD_PATH)
-            .unwrap();
+        let _ = Wad::load(DOOM_WAD_PATH).unwrap().patch(KILLER_WAD_PATH).unwrap();
 
         // IWAD + IWAD = error.
         let wad = Wad::load(DOOM_WAD_PATH).unwrap();
@@ -309,10 +300,7 @@ mod tests {
                 ("BLOCKMAP", 6418),
             ],
         );
-        assert_eq!(
-            DOOM2_WAD.lumps_between("S_START", "S_END").unwrap().len(),
-            1383
-        );
+        assert_eq!(DOOM2_WAD.lumps_between("S_START", "S_END").unwrap().len(), 1383);
 
         let wad = DOOM2_WAD.patch(BIOTECH_WAD_PATH).unwrap();
         assert_eq!(wad.lump("DEMO3").unwrap().size(), 9490);

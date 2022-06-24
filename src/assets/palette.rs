@@ -32,10 +32,7 @@ impl PaletteBank {
 
         cursor.done()?;
 
-        Ok(PaletteBank {
-            palettes,
-            active: 0,
-        })
+        Ok(PaletteBank { palettes, active: 0 })
     }
 
     /// The number of palettes in the bank.

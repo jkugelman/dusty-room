@@ -68,10 +68,8 @@ impl WadFile {
     /// Loads a WAD file from disk.
     pub fn load(path: impl AsRef<Path>) -> wad::Result<Arc<Self>> {
         let path = path.as_ref();
-        let file = File::open(path).map_err(|err| wad::Error::Io {
-            path: path.to_owned(),
-            source: err,
-        })?;
+        let file = File::open(path)
+            .map_err(|err| wad::Error::Io { path: path.to_owned(), source: err })?;
         Self::load_reader(path, file)
     }
 
@@ -84,10 +82,8 @@ impl WadFile {
     /// point to an actual file on disk.
     pub fn load_reader(path: impl AsRef<Path>, file: impl Read + Seek) -> wad::Result<Arc<Self>> {
         let path = path.as_ref();
-        let raw = Self::read_bytes(file).map_err(|err| wad::Error::Io {
-            path: path.to_owned(),
-            source: err,
-        })?;
+        let raw = Self::read_bytes(file)
+            .map_err(|err| wad::Error::Io { path: path.to_owned(), source: err })?;
         Self::load_raw(path, raw)
     }
 
@@ -125,24 +121,12 @@ impl WadFile {
 
     // Non-generic helper to minimize the amount of code subject to monomorphization.
     fn load_raw_impl(path: &Path, raw: Bytes) -> Result<Arc<Self>, String> {
-        let Header {
-            kind,
-            lump_count,
-            directory_offset,
-        } = Self::read_header(&raw)?;
+        let Header { kind, lump_count, directory_offset } = Self::read_header(&raw)?;
 
-        let Directory {
-            lump_locations,
-            lump_indices,
-        } = Self::read_directory(&raw, lump_count, directory_offset)?;
+        let Directory { lump_locations, lump_indices } =
+            Self::read_directory(&raw, lump_count, directory_offset)?;
 
-        Ok(Arc::new(Self {
-            path: path.to_owned(),
-            raw,
-            kind,
-            lump_locations,
-            lump_indices,
-        }))
+        Ok(Arc::new(Self { path: path.to_owned(), raw, kind, lump_locations, lump_indices }))
     }
 
     fn read_header(raw: &[u8]) -> Result<Header, String> {
@@ -219,10 +203,7 @@ impl WadFile {
                 .or_insert_with(|| vec![index]);
         }
 
-        Ok(Directory {
-            lump_locations,
-            lump_indices,
-        })
+        Ok(Directory { lump_locations, lump_indices })
     }
 
     /// The file's path on disk.
@@ -240,10 +221,7 @@ impl WadFile {
         if self.kind() == expected {
             Ok(())
         } else {
-            Err(wad::Error::WrongType {
-                path: self.path().to_owned(),
-                expected,
-            })
+            Err(wad::Error::WrongType { path: self.path().to_owned(), expected })
         }
     }
 
@@ -253,8 +231,7 @@ impl WadFile {
     ///
     /// It is an error if the lump is missing.
     pub fn lump(self: &Arc<Self>, name: &str) -> wad::Result<Lump> {
-        self.try_lump(name)?
-            .ok_or_else(|| self.error(format!("{} missing", name)))
+        self.try_lump(name)?.ok_or_else(|| self.error(format!("{} missing", name)))
     }
 
     /// Retrieves a unique lump by name.
@@ -419,9 +396,7 @@ impl WadFile {
 
         let file = Arc::clone(self);
         let name = location.name.clone();
-        let data = self
-            .raw
-            .slice(location.offset..location.offset + location.size);
+        let data = self.raw.slice(location.offset..location.offset + location.size);
 
         Lump::new(file, name, data)
     }
@@ -438,8 +413,7 @@ impl WadFile {
     /// An unordered dump of all lumps is rarely useful. This can be useful for debugging, or just
     /// to inspect the contents of a WAD. It's not used by any of the asset loading code.
     pub fn lumps(self: &Arc<Self>) -> impl Iterator<Item = Lump> + DoubleEndedIterator {
-        self.read_lumps(0..self.lump_indices.len(), false)
-            .into_iter()
+        self.read_lumps(0..self.lump_indices.len(), false).into_iter()
     }
 
     /// Creates a [`wad::Error::Malformed`] blaming this file.
@@ -450,13 +424,7 @@ impl WadFile {
 
 impl fmt::Debug for WadFile {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let Self {
-            path,
-            raw,
-            kind,
-            lump_locations,
-            lump_indices,
-        } = self;
+        let Self { path, raw, kind, lump_locations, lump_indices } = self;
 
         fmt.debug_struct("WadFile")
             .field("path", &path)

@@ -110,19 +110,11 @@ pub struct Lump {
 impl Lump {
     /// Creates a lump pointing at a slice of data from a `WadFile`.
     pub(super) fn new(file: Arc<WadFile>, name: String, data: Bytes) -> Self {
-        Self {
-            file,
-            block: None,
-            name,
-            data,
-        }
+        Self { file, block: None, name, data }
     }
 
     pub(super) fn from_block(&self, block: String) -> Self {
-        Self {
-            block: Some(block),
-            ..self.clone()
-        }
+        Self { block: Some(block), ..self.clone() }
     }
 
     /// The file containing the lump.
@@ -183,12 +175,7 @@ impl Lump {
 
 impl fmt::Debug for Lump {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let Self {
-            file,
-            block,
-            name,
-            data,
-        } = self;
+        let Self { file, block, name, data } = self;
 
         if let Some(block) = block {
             write!(fmt, "{} ", block)?;

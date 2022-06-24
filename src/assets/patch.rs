@@ -150,14 +150,7 @@ impl Patch {
             columns.push(Self::read_column(lump, offset.try_into().unwrap())?);
         }
 
-        Ok(Self {
-            name,
-            width,
-            height,
-            x,
-            y,
-            columns,
-        })
+        Ok(Self { name, width, height, x, y, columns })
     }
 
     fn read_column(lump: &Lump, offset: usize) -> wad::Result<Column> {
@@ -210,14 +203,7 @@ impl Patch {
 
 impl fmt::Debug for Patch {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let Self {
-            name,
-            width,
-            height,
-            x,
-            y,
-            columns: _,
-        } = self;
+        let Self { name, width, height, x, y, columns: _ } = self;
 
         fmt.debug_struct("Patch")
             .field("name", &name)

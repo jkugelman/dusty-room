@@ -45,14 +45,7 @@ impl Map {
         let sidedefs = Sidedefs::load(&lumps, assets, &sectors)?;
         let linedefs = Linedefs::load(&lumps, &vertexes, &sidedefs)?;
 
-        Ok(Some(Map {
-            name,
-            things,
-            vertexes,
-            sidedefs,
-            linedefs,
-            sectors,
-        }))
+        Ok(Some(Map { name, things, vertexes, sidedefs, linedefs, sectors }))
     }
 
     fn read_things(_lump: &Lump) {}
@@ -84,9 +77,8 @@ mod tests {
     #[test]
     fn geometry() {
         let assets = Assets::load(&DOOM2_WAD).unwrap();
-        let map = Map::load(&DOOM2_WAD, "MAP31", &assets)
-            .expect("failed to load")
-            .expect("map missing");
+        let map =
+            Map::load(&DOOM2_WAD, "MAP31", &assets).expect("failed to load").expect("map missing");
 
         assert_eq!(map.vertexes.len(), 635);
         assert_eq!(map.linedefs.len(), 686);
